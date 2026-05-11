@@ -77,8 +77,9 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
       alert("Please specify the Target Metric for the KPI Goal.");
       return;
     }
-    if ((taskType === 'adhoc_date' || taskType === 'adhoc_kpi') && !dueDate) {
-      alert("Please select a due date.");
+    // BUG FIX 1: Prevent silent fail for adhoc tasks with empty due date
+    if ((taskType === 'adhoc' || taskType === 'adhoc_date' || taskType === 'adhoc_kpi') && !dueDate) {
+      alert("Please set a Due Date for this adhoc task.");
       return;
     }
 

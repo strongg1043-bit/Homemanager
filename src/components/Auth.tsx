@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { auth, db } from '../firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, collection, getDocs, query, where, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, getDocs, query, where, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
 import { Role } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Layout, LogIn, UserPlus, Star, Shield, ArrowRight, Copy, Check, Sparkles } from 'lucide-react';
@@ -37,57 +37,59 @@ export default function Auth() {
         const user = userCredential.user;
         let householdId = '';
 
-        if (role === 'child') {
-          // Automated household creation for children
-          const newHouseholdRef = doc(collection(db, 'households'));
-          householdId = newHouseholdRef.id;
-          const code = generateInviteCode();
-          setInviteCode(code);
+        // Build the user profile doc — shared across all paths
+        const userDocRef = doc(db, 'users', user.uid);
+        const userProfile = {
+          uid: user.uid,
+          displayName: displayName.trim(),
+          email: user.email,
+          role: role,
+          householdId: '', // filled below per path
+          totalPoints: 0,
+          createdAt: serverTimestamp(),
+          profilePhoto: null,
+          avatarColour: 'indigo',
+          trustScore: 100,
+          badges: []
+        };
 
-          await setDoc(newHouseholdRef, {
-            id: householdId,
-            name: `${displayName}'s Family`,
-            createdBy: user.uid,
-            members: [user.uid],
-            rewardStore: [],
-            currency: 'R',
-            currencyName: 'Points',
-            cashOutEnabled: true,
-            minCashOut: 100,
-            createdAt: serverTimestamp(),
-            inviteCode: code,
-            familyColour: 'indigo',
-            familyLogo: null,
-            familyMotto: 'Supporting each other every day!'
-          });
-          
-          if (user.email) {
-            sendWelcomeEmail(user.email, displayName, `${displayName}'s Family`, role);
-          }
-        } else if (role === 'parent' && parentAction === 'join') {
-          // Join existing household via code
+        if (parentAction === 'join') {
+          // --- JOIN path (child or parent) ---
+          // Look up the household first, before touching anything
           const q = query(collection(db, 'households'), where('inviteCode', '==', joinCode.toUpperCase()));
           const snap = await getDocs(q);
-          if (snap.empty) throw new Error('Invalid invite code');
+          if (snap.empty) throw new Error('Invalid invite code. Please check and try again.');
           const hDoc = snap.docs[0];
           householdId = hDoc.id;
           const householdData = hDoc.data();
-          await updateDoc(doc(db, 'households', householdId), {
-            members: arrayUnion(user.uid)
-          });
-          
+
+          // Batch: add uid to household.members + create user doc atomically
+          const batch = writeBatch(db);
+          batch.update(doc(db, 'households', householdId), { members: arrayUnion(user.uid) });
+          batch.set(userDocRef, { ...userProfile, householdId });
+          await batch.commit();
+
           if (user.email) {
             sendWelcomeEmail(user.email, displayName, householdData.name || 'New Family', role);
           }
-        } else if (role === 'parent' && parentAction === 'create') {
-          // Parent creates household
+
+        } else if (parentAction === 'create') {
+          // --- CREATE path (child or parent) ---
           const newHouseholdRef = doc(collection(db, 'households'));
           householdId = newHouseholdRef.id;
           const code = generateInviteCode();
           setInviteCode(code);
-          await setDoc(newHouseholdRef, {
+
+          const familyName = role === 'child' ? `${displayName}'s Family` : 'New Family';
+          const familyMotto = role === 'child'
+            ? 'Supporting each other every day!'
+            : 'Teamwork makes the dream work!';
+
+          // Batch: create household + user doc atomically — no orphan households on failure
+          const batch = writeBatch(db);
+          batch.set(newHouseholdRef, {
             id: householdId,
-            name: 'New Family',
+            name: familyName,
             createdBy: user.uid,
             members: [user.uid],
             rewardStore: [],
@@ -99,39 +101,28 @@ export default function Auth() {
             inviteCode: code,
             familyColour: 'indigo',
             familyLogo: null,
-            familyMotto: 'Teamwork makes the dream work!'
+            familyMotto
           });
+          batch.set(userDocRef, { ...userProfile, householdId });
+          await batch.commit();
 
           if (user.email) {
-            sendWelcomeEmail(user.email, displayName, 'New Family', role);
+            sendWelcomeEmail(user.email, displayName, familyName, role);
           }
+        } else {
+          // Fallback: no action selected — should not reach here due to UI guard
+          await signOut(auth);
+          throw new Error('Please select whether you are creating or joining a family.');
         }
 
-        try {
-          await setDoc(doc(db, 'users', user.uid), {
-            uid: user.uid,
-            displayName: displayName.trim(),
-            email: user.email,
-            role: role,
-            householdId: householdId,
-            totalPoints: 0,
-            createdAt: serverTimestamp(),
-            profilePhoto: null,
-            avatarColour: 'indigo',
-            trustScore: 100,
-            badges: []
-          });
-          
-          if (role === 'child' && !isLogin) {
-            setStep('success');
-          }
-        } catch (setDocErr) {
-          await signOut(auth);
-          throw new Error('Account created but profile setup failed. Please try again.');
+        if (role === 'child' && !isLogin) {
+          setStep('success');
         }
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      // Sign out if auth user was created but batch failed, to avoid ghost accounts
+      if (auth.currentUser) await signOut(auth).catch(() => {});
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -293,7 +284,26 @@ export default function Auth() {
                     </div>
                   )}
 
-                  {role === 'parent' && parentAction === 'join' && (
+                  {role === 'child' && (
+                    <div className="flex gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setParentAction('create')}
+                        className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${parentAction === 'create' ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-50' : 'bg-white text-slate-500 border-slate-100'}`}
+                      >
+                        Start New Family
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setParentAction('join')}
+                        className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${parentAction === 'join' ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-50' : 'bg-white text-slate-500 border-slate-100'}`}
+                      >
+                        Join Existing
+                      </button>
+                    </div>
+                  )}
+
+                  {parentAction === 'join' && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
                       <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Invite Code</label>
                       <input

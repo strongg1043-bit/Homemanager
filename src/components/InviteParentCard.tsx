@@ -69,20 +69,19 @@ export default function InviteParentCard({
 
       if (!activeHouseholdId) throw new Error('No household ID');
 
-      // 2. Internal Notification
-      await addDoc(collection(db, 'notifications'), {
+      // 2. Internal Notification for parents in the household
+      await addDoc(collection(db, 'households', activeHouseholdId, 'notifications'), {
         householdId: activeHouseholdId,
         recipientRole: 'parent',
         type: 'invite_parent',
         title: '💸 No more swindling me!',
-        message: `${childName} is calling you out! They've been grinding on HomeManager and want you to join officially. Use household code: ${activeHouseholdCode}`,
+        message: `${childName} is calling you out! They've been grinding on HomeManager and want you to join officially.`,
         emoji: '🚀',
         read: false,
         createdAt: serverTimestamp(),
         invitedEmail: email,
         fromChildId: childUid,
         fromChildName: childName,
-        householdCode: activeHouseholdCode,
       });
 
       // 3. Real Email Trigger

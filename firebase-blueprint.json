@@ -84,6 +84,34 @@
         "paidAt": { "type": ["string", "null"], "format": "date-time" }
       },
       "required": ["id", "householdId", "type", "title", "pointsSpent", "cashValue", "childId", "childName", "status", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "Internal app notification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "householdId": { "type": "string" },
+        "recipientId": { "type": "string" },
+        "recipientRole": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "emoji": { "type": "string" }
+      }
+    },
+    "Dispute": {
+      "title": "Dispute",
+      "description": "Disagreement record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "householdId": { "type": "string" },
+        "taskId": { "type": ["string", "null"] },
+        "raisedBy": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "resolved"] }
+      }
     }
   },
   "firestore": {
@@ -102,6 +130,26 @@
     "/households/{householdId}/redemptions/{redemptionId}": {
       "schema": "Redemption",
       "description": "Redemption requests within a household"
+    },
+    "/households/{householdId}/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "User notifications"
+    },
+    "/households/{householdId}/disputes/{disputeId}": {
+      "schema": "Dispute",
+      "description": "Conflicts and resolutions"
+    },
+    "/households/{householdId}/audit_trail/{logId}": {
+      "schema": "object",
+      "description": "Immutable event log"
+    },
+    "/settings/email": {
+      "schema": "object",
+      "description": "Global system settings"
+    },
+    "/suggestions/{suggestionId}": {
+      "schema": "object",
+      "description": "User feedback"
     }
   }
 }

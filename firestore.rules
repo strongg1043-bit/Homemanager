@@ -82,6 +82,42 @@ service cloud.firestore {
           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approvedAt', 'paidAt', 'proofPhotoUrl', 'note'])
         );
       }
+      
+      // --- Notifications ---
+      match /notifications/{nid} {
+        allow read: if isMember(hid) && existing().recipientId == request.auth.uid;
+        allow create: if isMember(hid);
+        allow update: if isMember(hid) && existing().recipientId == request.auth.uid && 
+                       incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      }
+
+      // --- Disputes ---
+      match /disputes/{did} {
+        allow read: if isMember(hid);
+        allow create: if isMember(hid);
+        allow update: if isParent(hid) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'resolvedBy', 'resolvedAt', 'resolution']);
+      }
+
+      // --- Audit Trail ---
+      match /audit_trail/{aid} {
+        allow read: if isMember(hid);
+        allow create: if isMember(hid);
+        allow update, delete: if false; // Immutable logs
+      }
+    }
+
+    // --- Global Settings ---
+    // Only parents may write app-wide settings (e.g. email preferences).
+    // Children can read so their client can respect e.g. sustainability toggle.
+    match /settings/{sid} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && getUser(request.auth.uid).role == 'parent';
+    }
+
+    // --- Suggestions ---
+    match /suggestions/{sgid} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn();
     }
 
     function isValidTask(task) {

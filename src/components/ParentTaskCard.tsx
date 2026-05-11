@@ -9,7 +9,7 @@ import {
   Check, X, AlertCircle, User, Calendar, 
   Image as ImageIcon, ClipboardCheck, Info,
   Camera, Eye, ArrowRight, CornerUpLeft, 
-  Sparkles, ShieldCheck, History, AlertTriangle
+  Sparkles, ShieldCheck, History, AlertTriangle, Trash2
 } from 'lucide-react';
 
 interface ParentTaskCardProps {
@@ -19,6 +19,7 @@ interface ParentTaskCardProps {
   members: UserProfile[];
   onViewAudit?: (task: Task) => void;
   onOpenDispute?: (task: Task) => void;
+  onDelete?: (taskId: string) => void;
 }
 
 const TYPE_STYLES: Record<string, string> = {
@@ -39,7 +40,7 @@ const STATUS_LABELS: Record<string, string> = {
   forfeited: 'Forfeited'
 };
 
-const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, currency, members, onViewAudit, onOpenDispute }) => {
+const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, currency, members, onViewAudit, onOpenDispute, onDelete }) => {
   const [submitting, setSubmitting] = useState(false);
   const [showFullPhoto, setShowFullPhoto] = useState(false);
 
@@ -142,6 +143,17 @@ const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, curren
                 title="Raise Dispute"
               >
                 <AlertTriangle size={14} />
+              </button>
+              <button 
+                onClick={() => {
+                  if (confirm('Are you sure you want to delete this task?')) {
+                    onDelete?.(task.id);
+                  }
+                }}
+                className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                title="Delete Task"
+              >
+                <Trash2 size={14} />
               </button>
             </div>
           </div>

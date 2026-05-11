@@ -46,11 +46,16 @@ export default function App() {
         unsubProfile = onSnapshot(doc(db, 'users', firebaseUser.uid), async (snap) => {
           if (snap.exists()) {
             const profileData = snap.data() as UserProfile;
+            
+            // Safety check: ensure email matches or sync it
             if (!profileData.email && firebaseUser.email) {
               await updateDoc(doc(db, 'users', firebaseUser.uid), {
                 email: firebaseUser.email
               });
+            } else if (profileData.email && firebaseUser.email && profileData.email.toLowerCase() !== firebaseUser.email.toLowerCase()) {
+              console.warn("Profile email mismatch:", profileData.email, firebaseUser.email);
             }
+
             setProfile(profileData);
             setProfileLoading(false);
           } else {

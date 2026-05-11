@@ -75,7 +75,13 @@ export default function ChildDashboard({ profile }: Props) {
           })
         );
         setMembers(memberData.filter(Boolean) as UserProfile[]);
+      } else {
+        console.error("Household not found:", profile.householdId);
+        setHousehold(null);
       }
+      setLoading(false);
+    }, (err) => {
+      console.error("Household listener error:", err);
       setLoading(false);
     });
 
@@ -109,7 +115,7 @@ export default function ChildDashboard({ profile }: Props) {
         assignedToName: profile.displayName,
         pointValue: suggestedPoints,
         taskType: 'adhoc_date',
-        status: 'pending', // Replaced 'pending_parent_approval' with just 'pending' but with 'proposedBy: child'
+        status: 'proposed', 
         kpi: 'Parent will define quality standards',
         kpiLocked: false,
         evidenceType: 'photo',
@@ -240,7 +246,7 @@ export default function ChildDashboard({ profile }: Props) {
     (t.proposedBy === 'parent' || (t.proposedBy === 'child' && t.approvedAt))
   );
   
-  const pendingRequests = tasks.filter(t => t.proposedBy === 'child' && !t.approvedAt && t.status === 'pending');
+  const pendingRequests = tasks.filter(t => t.proposedBy === 'child' && !t.approvedAt && t.status === 'proposed');
 
   const trustScore = profile.trustScore || 0;
   let trustLabel = "🌱 Just getting started";

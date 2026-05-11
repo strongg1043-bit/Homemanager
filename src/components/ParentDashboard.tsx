@@ -1,24 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { doc, getDoc, collection, query, onSnapshot, updateDoc, arrayUnion, arrayRemove, orderBy, serverTimestamp, increment, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, collection, query, onSnapshot, updateDoc, arrayUnion, arrayRemove, orderBy, serverTimestamp, increment, writeBatch, deleteDoc } from 'firebase/firestore';
 import { UserProfile, Household, Task, Redemption, Dispute } from '../types';
 import ParentTaskCard from './ParentTaskCard';
 import CreateTaskForm, { resetRecurringTasks } from './CreateTaskForm';
 import RewardsManager from './RewardsManager';
 import HouseholdSetup from './HouseholdSetup';
+import HouseholdSettings from './HouseholdSettings';
 import WalletLedger from './WalletLedger';
 import SuggestFeature from './SuggestFeature';
 import NotificationBell from './NotificationBell';
 import AuditTrailDrawer from './AuditTrailDrawer';
 import PaymentConfirmationModal from './PaymentConfirmationModal';
 import DisputeModal from './DisputeModal';
+import EmailSettings from './EmailSettings';
+import InviteMemberCard from './InviteMemberCard';
+import InviteParentCard from './InviteParentCard';
 import { createNotification } from '../lib/notifications';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Layout, LogOut, CheckCircle, Clock, Users, Settings, 
   Plus, MessageSquare, ShieldCheck, Star, Sparkles,
   ChevronRight, ArrowUpRight, AlertCircle, Trash2, 
-  History, AlertTriangle, Receipt, Eye, X
+  History, AlertTriangle, Receipt, Eye, X, Mail
 } from 'lucide-react';
 
 interface Props {
@@ -27,6 +31,7 @@ interface Props {
 
 export default function ParentDashboard({ profile }: Props) {
   const [activeTab, setActiveTab] = useState<'review' | 'family' | 'settings'>('review');
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'email'>('general');
   const [household, setHousehold] = useState<Household | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
@@ -43,6 +48,15 @@ export default function ParentDashboard({ profile }: Props) {
   const [selectedRedemptionForDispute, setSelectedRedemptionForDispute] = useState<Redemption | null>(null);
   const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string | null>(null);
 
+  const handleDeleteTask = async (taskId: string) => {
+    if (!profile.householdId) return;
+    try {
+      await deleteDoc(doc(db, 'households', profile.householdId, 'tasks', taskId));
+    } catch (err) {
+      console.error('Error deleting task:', err);
+    }
+  };
+
   useEffect(() => {
     if (!profile.householdId) {
       setLoading(false);
@@ -51,7 +65,7 @@ export default function ParentDashboard({ profile }: Props) {
 
     const unsubHousehold = onSnapshot(doc(db, 'households', profile.householdId), async (snap) => {
       if (snap.exists()) {
-        const hData = snap.data() as Household;
+        const hData = { id: snap.id, ...snap.data() } as Household;
         setHousehold(hData);
         
         // Fetch member data
@@ -63,7 +77,13 @@ export default function ParentDashboard({ profile }: Props) {
           })
         );
         setMembers(memberData.filter(Boolean) as UserProfile[]);
+      } else {
+        console.error("Household not found:", profile.householdId);
+        setHousehold(null);
       }
+      setLoading(false);
+    }, (err) => {
+      console.error("Household listener error:", err);
       setLoading(false);
     });
 
@@ -108,6 +128,7 @@ export default function ParentDashboard({ profile }: Props) {
       await updateDoc(doc(db, 'households', household.id, 'tasks', task.id), stripUndefined({
         status: 'pending',
         pointValue: points || task.pointValue || 0,
+        proposedBy: null,
         approvedAt: serverTimestamp(),
         kpiLocked: true,
         rewardLocked: true,
@@ -153,7 +174,7 @@ export default function ParentDashboard({ profile }: Props) {
   if (!profile.householdId) return <HouseholdSetup profile={profile} />;
 
   const pendingSubmissions = tasks.filter(t => t.status === 'submitted');
-  const taskProposals = tasks.filter(t => t.status === 'pending' && t.proposedBy === 'child');
+  const taskProposals = tasks.filter(t => t.status === 'proposed' && t.proposedBy === 'child');
   const pendingRedemptions = redemptions.filter(r => r.status === 'pending');
   const paidRedemptions = redemptions.filter(r => r.status === 'paid');
   const openDisputes = disputes.filter(d => d.status === 'open');
@@ -330,6 +351,7 @@ export default function ParentDashboard({ profile }: Props) {
                         members={members}
                         onViewAudit={setSelectedTaskForAudit}
                         onOpenDispute={setSelectedTaskForDispute}
+                        onDelete={handleDeleteTask}
                       />
                     ))
                   ) : (
@@ -339,6 +361,34 @@ export default function ParentDashboard({ profile }: Props) {
                       </div>
                       <h3 className="text-slate-400 font-black text-lg">No tasks waiting for review</h3>
                       <p className="text-slate-400 text-sm font-medium">Enjoy the peace and quiet!</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Active Tasks Section */}
+              <section>
+                <div className="flex items-center gap-2 mb-6">
+                  <Star size={20} className="text-amber-500" />
+                  <h2 className="text-lg font-black text-slate-800 uppercase tracking-tight">Active Tasks (In Progress)</h2>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-6">
+                  {tasks.filter(t => t.status === 'accepted' || t.status === 'needs_retry').length > 0 ? (
+                    tasks.filter(t => t.status === 'accepted' || t.status === 'needs_retry').map(task => (
+                      <ParentTaskCard 
+                        key={task.id} 
+                        task={task} 
+                        childName={task.assignedToName}
+                        currency={household?.currency || 'R'}
+                        members={members}
+                        onViewAudit={setSelectedTaskForAudit}
+                        onOpenDispute={setSelectedTaskForDispute}
+                        onDelete={handleDeleteTask}
+                      />
+                    ))
+                  ) : (
+                    <div className="col-span-full py-12 text-center bg-slate-50 rounded-[2rem] border border-slate-100">
+                      <p className="text-slate-400 font-black text-xs uppercase tracking-widest">No tasks currently in progress</p>
                     </div>
                   )}
                 </div>
@@ -444,31 +494,39 @@ export default function ParentDashboard({ profile }: Props) {
               className="space-y-10"
             >
               <div>
-                <h2 className="text-3xl font-black text-slate-900 mb-6">Family</h2>
+                <h2 className="text-3xl font-black text-slate-900 mb-6 font-sans">Family & Members</h2>
                 
-                {/* Invite Code Card */}
-                <div className="bg-white rounded-3xl p-8 mb-10 border border-slate-100 shadow-sm relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
-                  <div className="relative z-10">
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">🔗 Invite Members</h3>
-                    <p className="text-sm text-slate-500 mb-6 font-medium">Share this code with family members to join {household?.name}</p>
-                    <div className="bg-slate-50 rounded-2xl p-6 flex items-center justify-between border border-slate-100">
-                      <div>
+                <div className="grid md:grid-cols-2 gap-6 mb-10">
+                  {/* Invite Code Card */}
+                  <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110" />
+                    <div className="relative z-10">
+                      <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">🔗 Invite Code</h3>
+                      <p className="text-sm text-slate-500 mb-6 font-medium">Share this code with family members to join {household?.name}</p>
+                      <div className="bg-slate-50 rounded-2xl p-6 flex flex-col items-center justify-center border border-slate-100">
                         <div className="text-[10px] text-indigo-400 font-black uppercase tracking-widest mb-1">Household Code</div>
-                        <div className="text-4xl font-black text-indigo-600 tracking-widest font-mono">{household?.inviteCode}</div>
+                        <div className="text-4xl font-black text-indigo-600 tracking-widest font-mono mb-4">{household?.inviteCode}</div>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(household?.inviteCode || '');
+                            alert('Code copied! Share it with family members to join.');
+                          }}
+                          className="w-full bg-indigo-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-indigo-100 active:scale-95"
+                        >
+                          📋 Copy Code
+                        </button>
                       </div>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(household?.inviteCode || '');
-                          alert('Code copied! Share it with family members to join.');
-                        }}
-                        className="bg-indigo-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-indigo-100 active:scale-95"
-                      >
-                        📋 Copy Code
-                      </button>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-4">Family members enter this code when signing up to join your household.</p>
                   </div>
+
+                  {/* Invite Member Card */}
+                  {household && (
+                    <InviteMemberCard 
+                      householdId={household.id}
+                      householdName={household.name}
+                      householdCode={household.inviteCode}
+                    />
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between mb-6">
@@ -530,17 +588,42 @@ export default function ParentDashboard({ profile }: Props) {
             >
               <h2 className="text-3xl font-black text-slate-900">Settings</h2>
               
-              <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8">
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h3 className="text-xl font-black text-slate-900">Family Profile</h3>
-                    <p className="text-slate-500 font-medium">Update your family identity</p>
-                  </div>
-                  <Settings className="text-slate-200" size={32} />
-                </div>
-                
-                {household && <HouseholdSetup profile={profile} isEditing={true} existingData={household} />}
+              <div className="flex gap-4 p-1 bg-slate-100 rounded-2xl w-fit mb-8">
+                <button 
+                  onClick={() => setActiveSettingsTab('general')}
+                  className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSettingsTab === 'general' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  General
+                </button>
+                <button 
+                  onClick={() => setActiveSettingsTab('email')}
+                  className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSettingsTab === 'email' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  Email
+                </button>
               </div>
+
+              {activeSettingsTab === 'general' ? (
+                <div className="space-y-6">
+                  <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+                    <div className="flex items-center justify-between mb-8">
+                      <div>
+                        <h3 className="text-xl font-black text-slate-900 leading-none mb-1">Family Profile</h3>
+                        <p className="text-slate-500 font-medium text-sm">Update your family identity</p>
+                      </div>
+                      <Settings className="text-slate-200" size={32} />
+                    </div>
+                    
+                    {household && <HouseholdSetup profile={profile} isEditing={true} existingData={household} />}
+                  </div>
+
+                  <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+                     {household && <HouseholdSettings household={household} />}
+                  </div>
+                </div>
+              ) : (
+                <EmailSettings />
+              )}
 
               <SuggestFeature 
                 userId={profile.uid}

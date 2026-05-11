@@ -12,7 +12,9 @@
       "Bash(mkdir -p C:/ClaudeCode/HomeManager/Live)",
       "Bash(unzip -o \"/c/Users/stron/Downloads/homemanager \\(2\\).zip\" -d C:/ClaudeCode/HomeManager/Live)",
       "Bash(# Full diff between audited \\(App/\\) and live \\(Live/\\) versions *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git config *)"
     ]
   }
 }
