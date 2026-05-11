@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { UserProfile } from './types';
 import Auth from './components/Auth';
@@ -56,22 +56,12 @@ export default function App() {
             setProfile(profileData);
             setProfileLoading(false);
           } else {
-            // Check if we are already in the process of creating a profile to avoid loops
-            try {
-              await setDoc(doc(db, 'users', firebaseUser.uid), {
-                uid: firebaseUser.uid,
-                displayName: firebaseUser.email?.split('@')[0] || 'User',
-                email: firebaseUser.email,
-                role: 'parent',
-                householdId: '',
-                totalPoints: 0,
-                createdAt: serverTimestamp()
-              });
-            } catch (err) {
-              console.error("Failed to create default profile:", err);
-              setProfile(null);
-              setProfileLoading(false);
-            }
+            // Profile doesn't exist — let Auth handle proper account creation
+            // so the user can choose their own role and display name.
+            // BUG-10: never auto-create a profile with a hardcoded role here,
+            // as social-login users would silently land in ParentDashboard.
+            setProfile(null);
+            setProfileLoading(false);
           }
         }, (err) => {
           console.error(err);

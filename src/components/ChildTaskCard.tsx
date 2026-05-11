@@ -11,6 +11,7 @@ import {
   History, AlertTriangle
 } from 'lucide-react';
 import { compressToBase64 } from '../lib/imageUtils';
+import { TYPE_STYLES, CHILD_STATUS_LABELS } from '../lib/taskConstants';
 
 interface ChildTaskCardProps {
   task: Task;
@@ -22,23 +23,6 @@ interface ChildTaskCardProps {
   onOpenDispute?: (task: Task) => void;
 }
 
-const TYPE_STYLES: Record<string, string> = {
-  daily: 'bg-green-100 text-green-800',
-  weekly: 'bg-blue-100 text-blue-800',
-  monthly: 'bg-pink-100 text-pink-800',
-  adhoc_date: 'bg-amber-100 text-amber-800',
-  adhoc_kpi: 'bg-purple-100 text-purple-800',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Waiting for you to start!',
-  accepted: 'Mission in progress',
-  submitted: 'Ready for review',
-  approved: 'Well done! ✓',
-  needs_retry: 'Give it another go',
-  missed: 'Missed — want to try again?',
-  forfeited: 'Missed — want to try again?'
-};
 
 const ChildTaskCard: React.FC<ChildTaskCardProps> = ({ task, currency, onUpdated, parents = [], profile, onViewAudit, onOpenDispute }) => {
   const [proofUrl, setProofUrl] = useState<string | null>(task.proofPhotoUrl ?? null);
@@ -202,7 +186,7 @@ const ChildTaskCard: React.FC<ChildTaskCardProps> = ({ task, currency, onUpdated
               <div className="flex items-center gap-2 mb-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
                 <Clock size={16} className="text-indigo-500" />
                 <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
-                  {STATUS_LABELS[task.status] || task.status}
+                  {CHILD_STATUS_LABELS[task.status] || task.status}
                 </span>
               </div>
 

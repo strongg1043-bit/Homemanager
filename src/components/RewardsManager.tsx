@@ -21,7 +21,7 @@ export default function RewardsManager({ household }: RewardsManagerProps) {
     setLoading(true);
     try {
       const newReward: RewardItem = {
-        id: Math.random().toString(36).substring(2, 9),
+        id: crypto.randomUUID(),
         title: title.trim(),
         pointCost
       };

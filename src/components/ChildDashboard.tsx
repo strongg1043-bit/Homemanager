@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { doc, onSnapshot, collection, query, orderBy, addDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, orderBy, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { UserProfile, Task, Household, Redemption } from '../types';
 import ChildTaskCard from './ChildTaskCard';
 import RedeemRewards from './RedeemRewards';
@@ -61,20 +61,9 @@ export default function ChildDashboard({ profile }: Props) {
       return;
     }
 
-    const unsubHousehold = onSnapshot(doc(db, 'households', profile.householdId), async (snap) => {
+    const unsubHousehold = onSnapshot(doc(db, 'households', profile.householdId), (snap) => {
       if (snap.exists()) {
-        const hData = { id: snap.id, ...snap.data() } as Household;
-        setHousehold(hData);
-
-        // Fetch member data for notifications
-        const memberData = await Promise.all(
-          hData.members.map(async (uid) => {
-            const uSnap = await getDoc(doc(db, 'users', uid));
-            if (uSnap.exists()) return uSnap.data() as UserProfile;
-            return null;
-          })
-        );
-        setMembers(memberData.filter(Boolean) as UserProfile[]);
+        setHousehold({ id: snap.id, ...snap.data() } as Household);
       } else {
         console.error("Household not found:", profile.householdId);
         setHousehold(null);
@@ -83,6 +72,12 @@ export default function ChildDashboard({ profile }: Props) {
     }, (err) => {
       console.error("Household listener error:", err);
       setLoading(false);
+    });
+
+    // ARCH-2: Single live query for member profiles — no N+1 getDoc calls inside household callback.
+    const qMembers = query(collection(db, 'users'), where('householdId', '==', profile.householdId));
+    const unsubMembers = onSnapshot(qMembers, (snap) => {
+      setMembers(snap.docs.map(d => d.data() as UserProfile));
     });
 
     const qTasks = query(collection(db, 'households', profile.householdId, 'tasks'), orderBy('createdAt', 'desc'));
@@ -97,6 +92,7 @@ export default function ChildDashboard({ profile }: Props) {
 
     return () => {
       unsubHousehold();
+      unsubMembers();
       unsubTasks();
       unsubRedemptions();
     };

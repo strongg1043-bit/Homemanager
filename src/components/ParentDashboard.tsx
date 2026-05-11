@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { doc, getDoc, collection, query, onSnapshot, updateDoc, arrayUnion, arrayRemove, orderBy, serverTimestamp, increment, writeBatch, deleteDoc } from 'firebase/firestore';
+import { doc, collection, query, where, onSnapshot, updateDoc, arrayUnion, arrayRemove, orderBy, serverTimestamp, increment, writeBatch, deleteDoc } from 'firebase/firestore';
 import { UserProfile, Household, Task, Redemption, Dispute } from '../types';
 import ParentTaskCard from './ParentTaskCard';
 import CreateTaskForm, { resetRecurringTasks } from './CreateTaskForm';
@@ -65,20 +65,9 @@ export default function ParentDashboard({ profile }: Props) {
       return;
     }
 
-    const unsubHousehold = onSnapshot(doc(db, 'households', profile.householdId), async (snap) => {
+    const unsubHousehold = onSnapshot(doc(db, 'households', profile.householdId), (snap) => {
       if (snap.exists()) {
-        const hData = { id: snap.id, ...snap.data() } as Household;
-        setHousehold(hData);
-        
-        // Fetch member data
-        const memberData = await Promise.all(
-          hData.members.map(async (uid) => {
-            const uSnap = await getDoc(doc(db, 'users', uid));
-            if (uSnap.exists()) return uSnap.data() as UserProfile;
-            return null;
-          })
-        );
-        setMembers(memberData.filter(Boolean) as UserProfile[]);
+        setHousehold({ id: snap.id, ...snap.data() } as Household);
       } else {
         console.error("Household not found:", profile.householdId);
         setHousehold(null);
@@ -89,11 +78,18 @@ export default function ParentDashboard({ profile }: Props) {
       setLoading(false);
     });
 
+    // ARCH-2: Single live query instead of N individual getDoc calls inside household callback.
+    // This listener automatically reflects profile changes (display name, points, etc.).
+    const membersQuery = query(collection(db, 'users'), where('householdId', '==', profile.householdId));
+    const unsubMembers = onSnapshot(membersQuery, (snap) => {
+      setMembers(snap.docs.map(d => d.data() as UserProfile));
+    });
+
     const tasksQuery = query(collection(db, 'households', profile.householdId, 'tasks'), orderBy('createdAt', 'desc'));
     const unsubTasks = onSnapshot(tasksQuery, (snap) => {
       const fetchedTasks = snap.docs.map(d => ({ id: d.id, ...d.data() } as Task));
       setTasks(fetchedTasks);
-      
+
       // Auto-reset recurring tasks
       if (profile.householdId) {
         resetRecurringTasks(profile.householdId, fetchedTasks);
@@ -112,6 +108,7 @@ export default function ParentDashboard({ profile }: Props) {
 
     return () => {
       unsubHousehold();
+      unsubMembers();
       unsubTasks();
       unsubRedemptions();
       unsubDisputes();

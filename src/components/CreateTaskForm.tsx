@@ -328,7 +328,7 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Evidence Required</label>
                     <select
                       value={evidenceType}
-                      onChange={(e) => setEvidenceType(e.target.value as any)}
+                      onChange={(e) => setEvidenceType(e.target.value as EvidenceType)}
                       className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                     >
                       <option value="photo">Photo Proof</option>

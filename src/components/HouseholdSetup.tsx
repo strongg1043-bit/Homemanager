@@ -23,6 +23,7 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
   const [uploading, setUploading] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [mode, setMode] = useState<'create' | 'join'>('create');
+  const [formError, setFormError] = useState('');
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -41,30 +42,32 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!joinCode.trim()) return;
+    setFormError('');
     setLoading(true);
     try {
       const q = query(collection(db, 'households'), where('inviteCode', '==', joinCode.toUpperCase()));
       const snap = await getDocs(q);
       if (snap.empty) {
-        alert('Invalid invite code. Please check and try again.');
+        setFormError('Invalid invite code. Please check and try again.');
+        setLoading(false);
         return;
       }
-      
+
       const hDoc = snap.docs[0];
       const householdId = hDoc.id;
-      
+
       await updateDoc(doc(db, 'households', householdId), {
         members: arrayUnion(profile.uid)
       });
-      
+
       await updateDoc(doc(db, 'users', profile.uid), {
         householdId: householdId
       });
-      
+
       if (onComplete) onComplete();
     } catch (err) {
       console.error(err);
-      alert('Failed to join household.');
+      setFormError('Failed to join household. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -73,18 +76,17 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    setFormError('');
     setLoading(true);
-    console.log("Starting household save process...");
 
     try {
       let householdId = existingData?.id;
 
       if (!householdId) {
-        console.log("Creating new household...");
         const newHouseholdRef = doc(collection(db, 'households'));
         householdId = newHouseholdRef.id;
         const code = generateInviteCode();
-        
+
         await setDoc(newHouseholdRef, {
           id: householdId,
           name: name.trim(),
@@ -103,12 +105,10 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
           updatedAt: serverTimestamp()
         });
 
-        console.log("Updating parent profile with householdId:", householdId);
         await updateDoc(doc(db, 'users', profile.uid), {
           householdId: householdId
         });
       } else {
-        console.log("Updating existing household:", householdId);
         await updateDoc(doc(db, 'households', householdId), {
           name: name.trim(),
           familyMotto: motto.trim(),
@@ -118,11 +118,10 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
         });
       }
 
-      console.log("Save complete, calling onComplete");
       if (onComplete) onComplete();
     } catch (err) {
       console.error("HouseholdSetup Error:", err);
-      alert("Failed to save household setup. Check console for details.");
+      setFormError("Failed to save. Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -277,6 +276,12 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
               </div>
             )}
 
+            {formError && (
+              <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
+                <span className="text-sm font-bold">{formError}</span>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading || uploading}
@@ -310,6 +315,12 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
                 placeholder="ABCDEF"
               />
             </div>
+
+            {formError && (
+              <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
+                <span className="text-sm font-bold">{formError}</span>
+              </div>
+            )}
 
             <button
               type="submit"

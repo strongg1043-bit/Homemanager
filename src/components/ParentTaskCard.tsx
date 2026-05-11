@@ -5,12 +5,13 @@ import { Task, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { createNotification } from '../lib/notifications';
 import { sendTaskApprovedEmail, sendTaskNeedsRetryEmail } from '../lib/email';
-import { 
-  Check, X, AlertCircle, User, Calendar, 
+import {
+  Check, X, AlertCircle, User, Calendar,
   Image as ImageIcon, ClipboardCheck, Info,
-  Camera, Eye, ArrowRight, CornerUpLeft, 
+  Camera, Eye, ArrowRight, CornerUpLeft,
   Sparkles, ShieldCheck, History, AlertTriangle, Trash2
 } from 'lucide-react';
+import { TYPE_STYLES, STATUS_LABELS } from '../lib/taskConstants';
 
 interface ParentTaskCardProps {
   task: Task;
@@ -22,23 +23,6 @@ interface ParentTaskCardProps {
   onDelete?: (taskId: string) => void;
 }
 
-const TYPE_STYLES: Record<string, string> = {
-  daily: 'bg-green-100 text-green-800',
-  weekly: 'bg-blue-100 text-blue-800',
-  monthly: 'bg-pink-100 text-pink-800',
-  adhoc_date: 'bg-amber-100 text-amber-800',
-  adhoc_kpi: 'bg-purple-100 text-purple-800',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Waiting to start',
-  accepted: 'In progress',
-  submitted: 'Ready for review',
-  approved: 'Approved ✓',
-  needs_retry: 'Re-do requested',
-  missed: 'Missed deadline',
-  forfeited: 'Forfeited'
-};
 
 const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, currency, members, onViewAudit, onOpenDispute, onDelete }) => {
   const [submitting, setSubmitting] = useState(false);
