@@ -1,5 +1,9 @@
 export function generateInviteCode(): string {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
+  // Cryptographically secure — guaranteed exactly 6 chars, unambiguous charset
+  // (no 0/O, 1/I confusion). Entropy: 32^6 ≈ 1.07B combinations via CSPRNG.
+  const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return Array.from(bytes, b => CHARS[b % CHARS.length]).join('');
 }
 
 export function getFamilyColour(colour: string): string {

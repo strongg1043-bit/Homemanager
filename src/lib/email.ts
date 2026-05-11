@@ -2,10 +2,12 @@ import emailjs from '@emailjs/browser';
 import { db } from '../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
-const SERVICE_ID = 'service_iab7yoq';
-const PUBLIC_KEY = 'xGcMUKdMFdgJGW67s';
+// All EmailJS credentials must be set in .env.local (see .env.example).
+const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID as string;
+const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY as string;
+const REPLY_TO   = import.meta.env.VITE_EMAILJS_REPLY_TO   as string ?? '';
 
-// Initialize EmailJS
+// Initialize EmailJS once at module load
 emailjs.init(PUBLIC_KEY);
 
 interface EmailParams {
@@ -68,7 +70,7 @@ async function sendEmail(params: EmailParams): Promise<void> {
       subject: params.subject,
       message_html: params.message_html,
       from_name: 'HomeManager',
-      reply_to: 'strongg1043@gmail.com',
+      reply_to: REPLY_TO,
     }, PUBLIC_KEY);
     console.log('Email sent to', params.to_email);
   } catch (err) {

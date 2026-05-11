@@ -62,10 +62,12 @@ service cloud.firestore {
       // --- Tasks ---
       match /tasks/{tid} {
         allow read: if isMember(hid);
-        allow create: if isParent(hid) && isValidTask(incoming());
+        // Require verified email before a parent can create tasks — prevents
+        // unverified throwaway accounts from flooding children with tasks.
+        allow create: if isVerified() && isParent(hid) && isValidTask(incoming());
         allow update: if isMember(hid) && (
           // Child submitting proof
-          (isChild(hid) && existing().assignedTo == request.auth.uid && existing().status in ['pending', 'rejected'] && 
+          (isChild(hid) && existing().assignedTo == request.auth.uid && existing().status in ['pending', 'rejected'] &&
            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'proofPhotoUrl', 'completedAt']) && incoming().status == 'submitted') ||
           // Parent approving/rejecting
           (isParent(hid) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approvedAt']))
@@ -76,10 +78,12 @@ service cloud.firestore {
       // --- Redemptions ---
       match /redemptions/{rid} {
         allow read: if isMember(hid);
-        allow create: if isChild(hid) && incoming().childId == request.auth.uid && isValidRedemption(incoming());
+        // Require verified email before a child can redeem — prevents
+        // unverified accounts from initiating financial transactions.
+        allow create: if isVerified() && isChild(hid) && incoming().childId == request.auth.uid && isValidRedemption(incoming());
         allow update: if isParent(hid) && (
           // Action: Approve/Reject/Pay
-          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approvedAt', 'paidAt', 'proofPhotoUrl', 'note'])
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approvedAt', 'paidAt', 'proofPhotoUrl', 'note', 'paidBy', 'paidByName', 'paymentMethod', 'paymentReference', 'paymentNote'])
         );
       }
       

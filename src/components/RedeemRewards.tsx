@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
-import { doc, setDoc, updateDoc, collection, serverTimestamp, increment } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, increment, writeBatch } from 'firebase/firestore';
 import { Household, UserProfile, RewardItem } from '../types';
 import { createNotification } from '../lib/notifications';
 import { sendCashoutRequestEmail } from '../lib/email';
@@ -26,7 +26,9 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
     setError('');
     try {
       const redemptionRef = doc(collection(db, 'households', household.id, 'redemptions'));
-      await setDoc(redemptionRef, {
+      // Atomic batch: redemption doc + point deduction land together or not at all.
+      const batch = writeBatch(db);
+      batch.set(redemptionRef, {
         id: redemptionRef.id,
         householdId: household.id,
         type: 'reward',
@@ -38,18 +40,23 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
         status: 'pending',
         proofPhotoUrl: null,
         note: null,
+        paidBy: null,
+        paidByName: null,
+        paymentMethod: null,
+        paymentReference: null,
+        paymentNote: null,
         createdAt: serverTimestamp(),
         approvedAt: null,
         paidAt: null,
       });
-
-      await updateDoc(doc(db, 'users', profile.uid), {
+      batch.update(doc(db, 'users', profile.uid), {
         totalPoints: increment(-reward.pointCost)
       });
+      await batch.commit();
 
       setConfirmingReward(null);
-    } catch (err: any) {
-      setError('Redemption failed: ' + err.message);
+    } catch (err: unknown) {
+      setError('Redemption failed: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsProcessing(false);
     }
@@ -62,7 +69,9 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
     setError('');
     try {
       const redemptionRef = doc(collection(db, 'households', household.id, 'redemptions'));
-      await setDoc(redemptionRef, {
+      // Atomic batch: redemption doc + point deduction land together or not at all.
+      const batch = writeBatch(db);
+      batch.set(redemptionRef, {
         id: redemptionRef.id,
         householdId: household.id,
         type: 'cash',
@@ -74,14 +83,19 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
         status: 'pending',
         proofPhotoUrl: null,
         note: null,
+        paidBy: null,
+        paidByName: null,
+        paymentMethod: null,
+        paymentReference: null,
+        paymentNote: null,
         createdAt: serverTimestamp(),
         approvedAt: null,
         paidAt: null,
       });
-
-      await updateDoc(doc(db, 'users', profile.uid), {
+      batch.update(doc(db, 'users', profile.uid), {
         totalPoints: increment(-cashAmount)
       });
+      await batch.commit();
 
       setConfirmingCash(false);
       setCashAmount(minCashOut);
@@ -100,8 +114,8 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
           sendCashoutRequestEmail(parent.email, parent.displayName || 'Parent', profile.displayName || 'Child', cashAmount, household.currency);
         }
       }
-    } catch (err: any) {
-      setError('Cash out failed: ' + err.message);
+    } catch (err: unknown) {
+      setError('Cash out failed: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       setIsProcessing(false);
     }

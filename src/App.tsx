@@ -9,9 +9,6 @@ import { doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/fi
 import { auth, db } from './firebase';
 import { UserProfile } from './types';
 import Auth from './components/Auth';
-import emailjs from '@emailjs/browser';
-
-emailjs.init('xGcMUKdMFdgJGW67s');
 import HouseholdSetup from './components/HouseholdSetup';
 import ParentDashboard from './components/ParentDashboard';
 import ChildDashboard from './components/ChildDashboard';

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
-import { doc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
+import { doc, increment, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Task, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { createNotification } from '../lib/notifications';
@@ -47,15 +47,16 @@ const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, curren
   const handleApprove = async () => {
     setSubmitting(true);
     try {
-      const taskRef = doc(db, 'households', task.householdId, 'tasks', task.id);
-      await updateDoc(taskRef, {
+      // Atomic batch: task status + point award land together or not at all.
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'households', task.householdId, 'tasks', task.id), {
         status: 'approved',
-        approvedAt: serverTimestamp()
+        approvedAt: serverTimestamp(),
       });
-      await updateDoc(doc(db, 'users', task.assignedTo), {
+      batch.update(doc(db, 'users', task.assignedTo), {
         totalPoints: increment(task.pointValue),
-        // Trust score logic could go here later
       });
+      await batch.commit();
 
       await createNotification(
         task.householdId, task.assignedTo, 'child',
