@@ -40,6 +40,7 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
   const [dayOfMonth, setDayOfMonth] = useState(1);
   const [loading, setLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const children = members.filter(m => m.role === 'child');
   const today = new Date().toISOString().split('T')[0];
@@ -60,26 +61,26 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setFormError('');
+
     if (!title.trim()) {
-      alert("Please provide a task title.");
+      setFormError("Please provide a task title.");
       return;
     }
     if (!assignedTo) {
-      alert("Please select a child to assign the task to.");
+      setFormError("Please select a child to assign the task to.");
       return;
     }
     if (!kpi.trim()) {
-      alert("Please specify the Quality Standard (KPI) for the task.");
+      setFormError("Please specify the Quality Standard (KPI) for the task.");
       return;
     }
     if (taskType === 'adhoc_kpi' && !targetMetric.trim()) {
-      alert("Please specify the Target Metric for the KPI Goal.");
+      setFormError("Please specify the Target Metric for the KPI Goal.");
       return;
     }
-    // BUG FIX 1: Prevent silent fail for adhoc tasks with empty due date
     if ((taskType === 'adhoc' || taskType === 'adhoc_date' || taskType === 'adhoc_kpi') && !dueDate) {
-      alert("Please set a Due Date for this adhoc task.");
+      setFormError("Please set a Due Date for this adhoc task.");
       return;
     }
 
@@ -130,7 +131,7 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
       onClose();
     } catch (err: any) {
       console.error(err);
-      alert("Failed to deploy task: " + err.message);
+      setFormError("Failed to create task. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -385,6 +386,14 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
               </button>
             </div>
           </div>
+
+          {/* Validation Error */}
+          {formError && (
+            <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700">
+              <Info size={16} className="shrink-0" />
+              <span className="text-sm font-bold">{formError}</span>
+            </div>
+          )}
 
           {/* Submit */}
           <div className="pt-4 sticky bottom-0 bg-white">
