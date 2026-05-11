@@ -35,6 +35,7 @@ export default function PaymentConfirmationModal({ isOpen, onClose, redemption, 
   const [proofUrl, setProofUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,7 +48,7 @@ export default function PaymentConfirmationModal({ isOpen, onClose, redemption, 
       setProofUrl(base64);
     } catch (err) {
       console.error(err);
-      alert('Failed to process image');
+      setFormError('Failed to process image. Please try a different file.');
     } finally {
       setUploading(false);
     }
@@ -90,7 +91,7 @@ export default function PaymentConfirmationModal({ isOpen, onClose, redemption, 
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Failed to confirm payment');
+      setFormError('Failed to confirm payment. Please check your connection and try again.');
     } finally {
       setSubmitting(false);
     }
@@ -240,6 +241,13 @@ export default function PaymentConfirmationModal({ isOpen, onClose, redemption, 
                   </button>
                 )}
               </div>
+
+              {/* Error */}
+              {formError && (
+                <div className="flex items-center gap-3 p-3 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm font-bold">
+                  {formError}
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex gap-4 pt-2">

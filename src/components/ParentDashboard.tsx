@@ -3,11 +3,11 @@ import { db, auth } from '../firebase';
 import { doc, collection, query, where, onSnapshot, updateDoc, arrayUnion, arrayRemove, orderBy, serverTimestamp, increment, writeBatch, deleteDoc } from 'firebase/firestore';
 import { UserProfile, Household, Task, Redemption, Dispute } from '../types';
 import ParentTaskCard from './ParentTaskCard';
-import CreateTaskForm, { resetRecurringTasks } from './CreateTaskForm';
+import CreateTaskForm from './CreateTaskForm';
+import { resetRecurringTasks } from '../lib/taskUtils';
 import RewardsManager from './RewardsManager';
 import HouseholdSetup from './HouseholdSetup';
 import HouseholdSettings from './HouseholdSettings';
-import WalletLedger from './WalletLedger';
 import SuggestFeature from './SuggestFeature';
 import NotificationBell from './NotificationBell';
 import AuditTrailDrawer from './AuditTrailDrawer';
@@ -17,6 +17,7 @@ import EmailSettings from './EmailSettings';
 import InviteMemberCard from './InviteMemberCard';
 import InviteParentCard from './InviteParentCard';
 import { createNotification } from '../lib/notifications';
+import { getFamilyColour } from '../lib/familyUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Layout, LogOut, CheckCircle, Clock, Users, Settings, 
@@ -49,6 +50,7 @@ export default function ParentDashboard({ profile }: Props) {
   const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string | null>(null);
   const [resolvingDispute, setResolvingDispute] = useState<Dispute | null>(null);
   const [resolutionText, setResolutionText] = useState('');
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const handleDeleteTask = async (taskId: string) => {
     if (!profile.householdId) return;
@@ -184,8 +186,7 @@ export default function ParentDashboard({ profile }: Props) {
   const openDisputes = disputes.filter(d => d.status === 'open');
   const children = members.filter(m => m.role === 'child');
 
-  const familyColour = household?.familyColour || 'indigo';
-  const familyTextClass = `text-[${familyColour}]`;
+  const familyColourHexHex = getFamilyColour(household?.familyColourHex || 'indigo');
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
@@ -195,7 +196,7 @@ export default function ParentDashboard({ profile }: Props) {
           <div className="flex items-center gap-4">
             <div 
               className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black overflow-hidden shadow-lg"
-              style={{ backgroundColor: familyColour }}
+              style={{ backgroundColor: familyColourHex }}
             >
               {household?.familyLogo ? (
                 <img src={household.familyLogo} className="w-full h-full object-cover" alt="Logo" />
@@ -204,7 +205,7 @@ export default function ParentDashboard({ profile }: Props) {
               )}
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-900 leading-none mb-1" style={{ color: familyColour }}>
+              <h1 className="text-xl font-black text-slate-900 leading-none mb-1" style={{ color: familyColourHex }}>
                 {household?.name}
               </h1>
               <p className="text-slate-400 text-xs font-bold italic tracking-tight">
@@ -513,11 +514,12 @@ export default function ParentDashboard({ profile }: Props) {
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(household?.inviteCode || '');
-                            alert('Code copied! Share it with family members to join.');
+                            setCodeCopied(true);
+                            setTimeout(() => setCodeCopied(false), 2000);
                           }}
-                          className="w-full bg-indigo-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-indigo-100 active:scale-95"
+                          className={`w-full px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg active:scale-95 ${codeCopied ? 'bg-emerald-600 text-white shadow-emerald-100' : 'bg-indigo-600 text-white shadow-indigo-100 hover:bg-slate-900'}`}
                         >
-                          📋 Copy Code
+                          {codeCopied ? '✓ Copied!' : '📋 Copy Code'}
                         </button>
                       </div>
                     </div>
@@ -545,7 +547,7 @@ export default function ParentDashboard({ profile }: Props) {
                       <div className="flex items-center gap-6">
                         <div 
                           className="w-20 h-20 rounded-[2rem] flex items-center justify-center text-white font-black text-3xl shadow-lg"
-                          style={{ backgroundColor: child.avatarColour || familyColour }}
+                          style={{ backgroundColor: child.avatarColour || familyColourHex }}
                         >
                           {child.profilePhoto ? (
                             <img src={child.profilePhoto} className="w-full h-full object-cover" alt="Profile" />

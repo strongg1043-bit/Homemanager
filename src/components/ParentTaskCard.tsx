@@ -27,6 +27,7 @@ interface ParentTaskCardProps {
 const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, currency, members, onViewAudit, onOpenDispute, onDelete }) => {
   const [submitting, setSubmitting] = useState(false);
   const [showFullPhoto, setShowFullPhoto] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleApprove = async () => {
     setSubmitting(true);
@@ -129,17 +130,32 @@ const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, curren
               >
                 <AlertTriangle size={14} />
               </button>
-              <button 
-                onClick={() => {
-                  if (confirm('Are you sure you want to delete this task?')) {
-                    onDelete?.(task.id);
-                  }
-                }}
-                className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                title="Delete Task"
-              >
-                <Trash2 size={14} />
-              </button>
+              {confirmDelete ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => { onDelete?.(task.id); setConfirmDelete(false); }}
+                    className="p-1.5 bg-rose-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest"
+                    title="Confirm delete"
+                  >
+                    Yes
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg text-[9px] font-black uppercase tracking-widest"
+                    title="Cancel"
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                  title="Delete Task"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
             </div>
           </div>
         </div>

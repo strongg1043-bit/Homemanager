@@ -14,6 +14,7 @@ export default function RewardsManager({ household }: RewardsManagerProps) {
   const [pointCost, setPointCost] = useState<number>(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleAddReward = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,13 +39,14 @@ export default function RewardsManager({ household }: RewardsManagerProps) {
   };
 
   const handleDeleteReward = async (reward: RewardItem) => {
-    if (!confirm(`Delete "${reward.title}" from reward store?`)) return;
     try {
       await updateDoc(doc(db, 'households', household.id), {
         rewardStore: arrayRemove(reward)
       });
     } catch (err) {
       console.error(err);
+    } finally {
+      setConfirmDeleteId(null);
     }
   };
 
@@ -125,12 +127,29 @@ export default function RewardsManager({ household }: RewardsManagerProps) {
                         <Info size={12} /> Value: {household.currency}{reward.pointCost}
                       </div>
                     </div>
-                    <button 
-                      onClick={() => handleDeleteReward(reward)}
-                      className="text-slate-300 hover:text-red-500 transition-colors p-1"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    {confirmDeleteId === reward.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleDeleteReward(reward)}
+                          className="text-[9px] font-black text-white bg-red-500 px-2 py-1 rounded-lg uppercase tracking-widest"
+                        >
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="text-[9px] font-black text-slate-400 hover:text-slate-600 px-2 py-1 rounded-lg uppercase tracking-widest"
+                        >
+                          No
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteId(reward.id)}
+                        className="text-slate-300 hover:text-red-500 transition-colors p-1"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                   
                   <div className="flex items-baseline gap-1 mt-4">

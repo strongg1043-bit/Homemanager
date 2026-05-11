@@ -24,6 +24,7 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
   const [joinCode, setJoinCode] = useState('');
   const [mode, setMode] = useState<'create' | 'join'>('create');
   const [formError, setFormError] = useState('');
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -266,11 +267,12 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
                     type="button"
                     onClick={() => {
                       navigator.clipboard.writeText(existingData.inviteCode || '');
-                      alert('Code copied!');
+                      setCodeCopied(true);
+                      setTimeout(() => setCodeCopied(false), 2000);
                     }}
-                    className="bg-white text-slate-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all active:scale-95 ${codeCopied ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
                   >
-                    Copy
+                    {codeCopied ? 'Copied! ✓' : 'Copy'}
                   </button>
                 </div>
               </div>

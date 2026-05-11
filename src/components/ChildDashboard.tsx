@@ -20,6 +20,7 @@ import {
   BellRing, AlertTriangle, Banknote
 } from 'lucide-react';
 import { compressToBase64Profile } from '../lib/imageUtils';
+import { getFamilyColour } from '../lib/familyUtils';
 
 interface Props {
   profile: UserProfile;
@@ -43,6 +44,7 @@ export default function ChildDashboard({ profile }: Props) {
   const [requestReason, setRequestReason] = useState('');
   const [suggestedPoints, setSuggestedPoints] = useState(10);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [reminderSentId, setReminderSentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [onboardingMode, setOnboardingMode] = useState<'join' | 'setup'>('join');
   const [urlParams, setUrlParams] = useState({ code: '', email: '' });
@@ -173,7 +175,8 @@ export default function ChildDashboard({ profile }: Props) {
         '🔔', { redemptionId: redemption.id }
       );
     }
-    alert('Reminder sent to parents!');
+    setReminderSentId(redemption.id);
+    setTimeout(() => setReminderSentId(null), 2500);
   };
 
   if (loading) return (
@@ -251,7 +254,7 @@ export default function ChildDashboard({ profile }: Props) {
   else if (trustScore >= 70) { trustLabel = "✅ Reliable"; trustColor = "bg-blue-500"; }
   else if (trustScore >= 40) { trustLabel = "📈 Building trust"; trustColor = "bg-amber-500"; }
 
-  const familyColour = household?.familyColour || 'indigo';
+  const familyColourHexHex = getFamilyColour(household?.familyColourHex || 'indigo');
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
@@ -261,7 +264,7 @@ export default function ChildDashboard({ profile }: Props) {
           <div className="flex items-center gap-4">
             <div 
               className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black overflow-hidden shadow-lg"
-              style={{ backgroundColor: familyColour }}
+              style={{ backgroundColor: familyColourHex }}
             >
               {household?.familyLogo ? (
                 <img src={household.familyLogo} className="w-full h-full object-cover" alt="Logo" />
@@ -270,7 +273,7 @@ export default function ChildDashboard({ profile }: Props) {
               )}
             </div>
             <div>
-              <h1 className="text-xl font-black text-slate-900 leading-none mb-1" style={{ color: familyColour }}>
+              <h1 className="text-xl font-black text-slate-900 leading-none mb-1" style={{ color: familyColourHex }}>
                 {household?.name}
               </h1>
               <p className="text-slate-400 text-xs font-bold italic tracking-tight">
@@ -482,11 +485,12 @@ export default function ChildDashboard({ profile }: Props) {
                           
                           <div className="flex items-center gap-2">
                             {r.status === 'pending' && (
-                              <button 
+                              <button
                                 onClick={() => handleSendReminder(r)}
-                                className="flex items-center gap-1.5 text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 px-3 py-2 rounded-xl hover:bg-indigo-100 transition-colors"
+                                disabled={reminderSentId === r.id}
+                                className={`flex items-center gap-1.5 text-[10px] font-black uppercase px-3 py-2 rounded-xl transition-colors ${reminderSentId === r.id ? 'bg-emerald-50 text-emerald-600' : 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'}`}
                               >
-                                <BellRing size={14} /> Remind
+                                <BellRing size={14} /> {reminderSentId === r.id ? 'Sent! ✓' : 'Remind'}
                               </button>
                             )}
                             <button 
@@ -529,7 +533,7 @@ export default function ChildDashboard({ profile }: Props) {
                 <div className="relative group">
                   <div 
                     className="w-32 h-32 rounded-[3rem] overflow-hidden bg-slate-100 flex items-center justify-center shadow-2xl"
-                    style={{ backgroundColor: profile.avatarColour || familyColour }}
+                    style={{ backgroundColor: profile.avatarColour || familyColourHex }}
                   >
                     {profile.profilePhoto ? (
                       <img src={profile.profilePhoto} className="w-full h-full object-cover" alt="Profile" />

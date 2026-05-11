@@ -1,24 +1,19 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot, orderBy, updateDoc, doc, Timestamp, increment, writeBatch } from 'firebase/firestore';
-import { auth } from '../firebase';
 import { Task, Redemption } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  CheckCircle2, 
-  Clock, 
-  Gift, 
-  Banknote, 
-  XCircle, 
-  Camera, 
-  Loader2, 
-  Eye, 
-  ChevronRight,
-  Wallet
+import {
+  ArrowUpRight,
+  CheckCircle2,
+  Clock,
+  Gift,
+  Banknote,
+  XCircle,
+  Eye,
+  Wallet,
+  Loader2
 } from 'lucide-react';
-import { compressToBase64 } from '../lib/imageUtils';
 
 interface WalletLedgerProps {
   householdId: string;
@@ -27,21 +22,18 @@ interface WalletLedgerProps {
   currency: string;
   totalPoints: number;
   isParent: boolean;
+  /** ARCH-4: caller supplies this so PaymentConfirmationModal handles the full payment flow */
+  onRequestPayment?: (redemption: Redemption) => void;
 }
 
-type Transaction = 
+type Transaction =
   | { type: 'task'; data: Task; date: Date }
   | { type: 'redemption'; data: Redemption; date: Date };
 
-export default function WalletLedger({ householdId, childId, childName, currency, totalPoints, isParent }: WalletLedgerProps) {
+export default function WalletLedger({ householdId, childId, childName, currency, totalPoints, isParent, onRequestPayment }: WalletLedgerProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [paymentModalRedemption, setPaymentModalRedemption] = useState<Redemption | null>(null);
-  const [proofPreview, setProofPreview] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [note, setNote] = useState('');
   const [viewingProof, setViewingProof] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -93,43 +85,6 @@ export default function WalletLedger({ householdId, childId, childName, currency
       unsubRedemptions();
     };
   }, [householdId, childId]);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsUploading(true);
-    try {
-      const base64 = await compressToBase64(file, 800, 0.6);
-      setProofPreview(base64);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleMarkPaid = async () => {
-    if (!paymentModalRedemption || !proofPreview) return;
-    setIsUploading(true);
-    try {
-      await updateDoc(doc(db, 'households', householdId, 'redemptions', paymentModalRedemption.id), {
-        status: 'paid',
-        paidAt: Timestamp.now(),
-        proofPhotoUrl: proofPreview,
-        note: note.trim() || null,
-        paidBy: auth.currentUser?.uid ?? null,
-        paidByName: auth.currentUser?.displayName ?? null,
-        paymentMethod: 'cash',
-      });
-      setPaymentModalRedemption(null);
-      setProofPreview(null);
-      setNote('');
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   const handleStatusChange = async (redemptionId: string, status: 'approved' | 'rejected') => {
     try {
@@ -270,9 +225,9 @@ export default function WalletLedger({ householdId, childId, childName, currency
                           </div>
                         )}
 
-                        {isParent && redemption.status === 'approved' && isCash && (
-                          <button 
-                            onClick={() => setPaymentModalRedemption(redemption)}
+                        {isParent && redemption.status === 'approved' && isCash && onRequestPayment && (
+                          <button
+                            onClick={() => onRequestPayment(redemption)}
                             className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-lg flex items-center gap-1 shadow-sm"
                           >
                             <Banknote size={14} /> Mark as Paid
@@ -288,79 +243,7 @@ export default function WalletLedger({ householdId, childId, childName, currency
         </div>
       </div>
 
-      {/* Payment Proof Modal */}
-      <AnimatePresence>
-        {paymentModalRedemption && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl"
-            >
-              <div className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-slate-900">Mark as Paid</h3>
-                  <button onClick={() => setPaymentModalRedemption(null)} className="text-slate-400"><XCircle size={24} /></button>
-                </div>
-                
-                <div className="p-4 bg-slate-50 rounded-2xl">
-                  <div className="text-xs text-slate-500 uppercase font-bold mb-1">Paying {childName}</div>
-                  <div className="text-2xl font-black text-slate-900">{currency}{paymentModalRedemption.cashValue}</div>
-                </div>
-
-                <div className="space-y-4">
-                  <input 
-                    ref={fileInputRef} 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={handleFileChange} 
-                  />
-                  
-                  {proofPreview ? (
-                    <div className="relative aspect-video rounded-xl overflow-hidden border">
-                      <img src={proofPreview} alt="Proof" className="w-full h-full object-cover" />
-                      <button 
-                        onClick={() => setProofPreview(null)}
-                        className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full"
-                      >
-                        <XCircle size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full aspect-video border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-500 hover:border-emerald-300 hover:bg-emerald-50 transition-all"
-                    >
-                      <Camera size={24} />
-                      <span className="text-sm font-semibold">Upload payment proof</span>
-                    </button>
-                  )}
-
-                  <textarea 
-                    placeholder="Add a note (optional)"
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent min-h-[100px]"
-                  />
-
-                  <button 
-                    disabled={!proofPreview || isUploading}
-                    onClick={handleMarkPaid}
-                    className="w-full py-4 bg-emerald-600 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
-                  >
-                    {isUploading ? <Loader2 className="animate-spin" /> : <CheckCircle2 size={20} />}
-                    Confirm Payment
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Single Photo Viewer Modal */}
+      {/* Photo Viewer Modal */}
       <AnimatePresence>
         {viewingProof && (
           <div className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4" onClick={() => setViewingProof(null)}>
