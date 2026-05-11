@@ -1,0 +1,107 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and role",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["parent", "child"] },
+        "householdId": { "type": "string" },
+        "totalPoints": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "role", "householdId", "totalPoints", "createdAt"]
+    },
+    "Household": {
+      "title": "Household",
+      "description": "Family group container",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "members": { "type": "array", "items": { "type": "string" } },
+        "rewardStore": { "type": "array", "items": { "$ref": "#/entities/RewardItem" } },
+        "currency": { "type": "string" },
+        "currencyName": { "type": "string" },
+        "cashOutEnabled": { "type": "boolean" },
+        "minCashOut": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "createdBy", "members", "rewardStore", "currency", "currencyName", "cashOutEnabled", "minCashOut", "createdAt"]
+    },
+    "RewardItem": {
+      "title": "Reward Item",
+      "description": "A reward available for redemption",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "pointCost": { "type": "number" }
+      },
+      "required": ["id", "title", "pointCost"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "Chore or job assigned to a child",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "householdId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "pointValue": { "type": "number" },
+        "assignedTo": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "submitted", "approved", "rejected"] },
+        "requiresProof": { "type": "boolean" },
+        "proofPhotoUrl": { "type": ["string", "null"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": ["string", "null"], "format": "date-time" },
+        "approvedAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "required": ["id", "householdId", "title", "pointValue", "assignedTo", "status", "requiresProof", "createdAt"]
+    },
+    "Redemption": {
+      "title": "Redemption",
+      "description": "A request for a reward or cash out",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "householdId": { "type": "string" },
+        "type": { "type": "string", "enum": ["reward", "cash"] },
+        "title": { "type": "string" },
+        "pointsSpent": { "type": "number" },
+        "cashValue": { "type": "number" },
+        "childId": { "type": "string" },
+        "childName": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected", "paid"] },
+        "proofPhotoUrl": { "type": ["string", "null"] },
+        "note": { "type": ["string", "null"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "approvedAt": { "type": ["string", "null"], "format": "date-time" },
+        "paidAt": { "type": ["string", "null"], "format": "date-time" }
+      },
+      "required": ["id", "householdId", "type", "title", "pointsSpent", "cashValue", "childId", "childName", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Global user profiles"
+    },
+    "/households/{householdId}": {
+      "schema": "Household",
+      "description": "Family household data"
+    },
+    "/households/{householdId}/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Tasks within a household"
+    },
+    "/households/{householdId}/redemptions/{redemptionId}": {
+      "schema": "Redemption",
+      "description": "Redemption requests within a household"
+    }
+  }
+}

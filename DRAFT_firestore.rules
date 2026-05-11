@@ -1,0 +1,103 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    function getUser(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
+    function isMember(hid) { 
+      return isSignedIn() && exists(/databases/$(database)/documents/households/$(hid)) && 
+             request.auth.uid in get(/databases/$(database)/documents/households/$(hid)).data.members; 
+    }
+    function isParent(hid) { 
+      return isMember(hid) && getUser(request.auth.uid).role == 'parent';
+    }
+    function isChild(hid) { 
+      return isMember(hid) && getUser(request.auth.uid).role == 'child';
+    }
+
+    // --- Users ---
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || (getUser(request.auth.uid).householdId != '' && getUser(request.auth.uid).householdId == resource.data.householdId));
+      allow list: if isSignedIn() && resource.data.householdId != '' && resource.data.householdId == getUser(request.auth.uid).householdId;
+      
+      allow create: if isSignedIn() && request.auth.uid == userId;
+
+      allow update: if isSignedIn() && (
+        // Self-update
+        (request.auth.uid == userId && (
+          // Action: Profile update
+          (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'householdId'])) ||
+          // Action: Point Deduction (Redemption)
+          (incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints']) && incoming().totalPoints < existing().totalPoints)
+        )) ||
+        // Parent update (Task approval or Refund)
+        (getUser(request.auth.uid).role == 'parent' && getUser(request.auth.uid).householdId == existing().householdId &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints']))
+      );
+    }
+
+    // --- Households ---
+    match /households/{hid} {
+      allow get: if isMember(hid);
+      allow create: if isSignedIn() && incoming().createdBy == request.auth.uid;
+      
+      allow update: if isParent(hid) && (
+        incoming().diff(existing()).affectedKeys().hasAll(['members', 'rewardStore', 'currency', 'currencyName', 'cashOutEnabled', 'minCashOut']) ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['members']) ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['rewardStore']) ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['currency', 'currencyName', 'cashOutEnabled', 'minCashOut'])
+      );
+
+      // --- Tasks ---
+      match /tasks/{tid} {
+        allow read: if isMember(hid);
+        allow create: if isParent(hid) && isValidTask(incoming());
+        allow update: if isMember(hid) && (
+          // Child submitting proof
+          (isChild(hid) && existing().assignedTo == request.auth.uid && existing().status in ['pending', 'rejected'] && 
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'proofPhotoUrl', 'completedAt']) && incoming().status == 'submitted') ||
+          // Parent approving/rejecting
+          (isParent(hid) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approvedAt']))
+        );
+        allow delete: if isParent(hid);
+      }
+
+      // --- Redemptions ---
+      match /redemptions/{rid} {
+        allow read: if isMember(hid);
+        allow create: if isChild(hid) && incoming().childId == request.auth.uid && isValidRedemption(incoming());
+        allow update: if isParent(hid) && (
+          // Action: Approve/Reject/Pay
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approvedAt', 'paidAt', 'proofPhotoUrl', 'note'])
+        );
+      }
+    }
+
+    function isValidTask(task) {
+      return task.title is string && task.title.size() <= 100 &&
+             task.pointValue is number && task.pointValue >= 0 &&
+             task.assignedTo is string && 
+             task.status == 'pending' &&
+             task.householdId is string;
+    }
+
+    function isValidRedemption(red) {
+      return red.title is string && red.title.size() <= 100 &&
+             red.pointsSpent is number && red.pointsSpent >= 0 &&
+             red.childId == request.auth.uid &&
+             red.status == 'pending' &&
+             red.type in ['reward', 'cash'] &&
+             red.householdId is string;
+    }
+  }
+}

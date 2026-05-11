@@ -1,0 +1,146 @@
+import { Timestamp } from 'firebase/firestore';
+
+export type Role = 'parent' | 'child';
+export type TaskType = 'daily' | 'weekly' | 'monthly' | 'adhoc_date' | 'adhoc_kpi';
+export type EvidenceType = 'photo' | 'document' | 'grade' | 'any';
+export type TaskStatus = 'pending' | 'accepted' | 'submitted' | 'approved' | 'needs_retry' | 'missed' | 'forfeited';
+
+export interface UserProfile {
+  uid: string;
+  displayName: string;
+  role: Role;
+  householdId: string;
+  totalPoints: number;
+  createdAt: Timestamp;
+  profilePhoto: string | null;
+  avatarColour: string;
+  trustScore: number;
+  badges: string[];
+  email?: string;
+}
+
+export interface RewardItem {
+  id: string;
+  title: string;
+  pointCost: number;
+}
+
+export interface Household {
+  id: string;
+  name: string;
+  createdBy: string;
+  members: string[];
+  rewardStore: RewardItem[];
+  currency: string;
+  currencyName: string;
+  cashOutEnabled: boolean;
+  minCashOut: number;
+  createdAt: Timestamp;
+  inviteCode: string;
+  familyColour: string;
+  familyLogo: string | null;
+  familyMotto: string | null;
+}
+
+export interface Task {
+  id: string;
+  householdId: string;
+  title: string;
+  description: string;
+  assignedTo: string;
+  assignedToName: string;
+  pointValue: number;
+  taskType: TaskType;
+  status: TaskStatus;
+  
+  // KPI system
+  kpi: string;
+  kpiLocked: boolean;
+  targetMetric?: string;
+  evidenceType: 'photo' | 'document' | 'grade' | 'any';
+  
+  // Recurrence
+  recurrence?: {
+    weekday?: string;
+    dayOfMonth?: number;
+    lastReset?: Timestamp;
+  };
+  
+  dueDate: Timestamp | null;
+  requiresProof: boolean;
+  beforePhotoUrl: string | null;
+  proofPhotoUrl: string | null;
+  
+  // Agreement tracking
+  proposedBy: 'parent' | 'child';
+  rewardLocked: boolean;
+  rewardLockedAt?: Timestamp;
+  childAcceptedAt?: Timestamp;
+  
+  completedAt: Timestamp | null;
+  approvedAt: Timestamp | null;
+  createdAt: Timestamp;
+}
+
+export type RedemptionType = 'reward' | 'cash';
+export type RedemptionStatus = 'pending' | 'approved' | 'rejected' | 'paid';
+
+export interface Redemption {
+  id: string;
+  householdId: string;
+  type: RedemptionType;
+  title: string;
+  pointsSpent: number;
+  cashValue: number;
+  childId: string;
+  childName: string;
+  status: RedemptionStatus;
+  
+  // Payment Proof Fields
+  paidAt: Timestamp | null;
+  paidBy: string | null;
+  paidByName: string | null;
+  paymentMethod: 'cash' | 'bank_transfer' | 'eft' | 'other' | null;
+  paymentReference: string | null;
+  paymentNote: string | null;
+  proofPhotoUrl: string | null;
+  
+  note: string | null;
+  createdAt: Timestamp;
+  approvedAt: Timestamp | null;
+}
+
+export type NotificationType = 'task_submitted' | 'task_approved' | 'task_needs_retry' | 'task_assigned' |
+  'cashout_requested' | 'cashout_paid' | 'reward_redeemed' | 'task_due_soon' | 'welcome' | 'payment_reminder' | 'dispute_raised';
+
+export interface Dispute {
+  id: string;
+  householdId: string;
+  taskId?: string | null;
+  redemptionId?: string | null;
+  raisedBy: string;
+  raisedByName: string;
+  raisedByRole: 'parent' | 'child';
+  reason: string;
+  desiredOutcome: string;
+  status: 'open' | 'resolved';
+  createdAt: Timestamp;
+  resolvedAt?: Timestamp | null;
+  resolvedBy?: string | null;
+  resolution?: string | null;
+}
+
+export interface Notification {
+  id: string;
+  householdId: string;
+  recipientId: string;
+  recipientRole: 'parent' | 'child';
+  type: NotificationType;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: Timestamp;
+  relatedTaskId?: string | null;
+  relatedRedemptionId?: string | null;
+  emoji: string;
+}

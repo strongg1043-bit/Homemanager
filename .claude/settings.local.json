@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "mcp__Claude_in_Chrome__navigate",
+      "mcp__Claude_in_Chrome__computer",
+      "mcp__Claude_in_Chrome__get_page_text",
+      "Bash(unzip -o ~/Downloads/homemanager.zip -d .)",
+      "Bash(git -C C:/ClaudeCode/HomeManager/App log --oneline)",
+      "Bash(xargs sha256sum)",
+      "mcp__Claude_in_Chrome__browser_batch",
+      "Bash(mkdir -p C:/ClaudeCode/HomeManager/Live)",
+      "Bash(unzip -o \"/c/Users/stron/Downloads/homemanager \\(2\\).zip\" -d C:/ClaudeCode/HomeManager/Live)",
+      "Bash(# Full diff between audited \\(App/\\) and live \\(Live/\\) versions *)",
+      "Bash(git add *)"
+    ]
+  }
+}
