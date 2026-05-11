@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { auth, db } from '../firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, collection, getDocs, query, where, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
 import { Role } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -21,6 +21,8 @@ export default function Auth() {
   const [error, setError] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [copied, setCopied] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,6 +142,29 @@ export default function Auth() {
       setError(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setError('Enter your email address above, then click "Forgot password?".');
+      return;
+    }
+    setResetLoading(true);
+    setError('');
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setResetSent(true);
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code === 'auth/user-not-found' || code === 'auth/invalid-email') {
+        // Don't reveal whether the address exists — just show success to prevent enumeration
+        setResetSent(true);
+      } else {
+        setError('Could not send reset email. Please try again.');
+      }
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -360,6 +385,25 @@ export default function Auth() {
               </div>
 
               {error && <p className="text-red-500 text-xs font-bold bg-red-50 p-3 rounded-xl border border-red-100">{error}</p>}
+
+              {resetSent && (
+                <p className="text-emerald-600 text-xs font-bold bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                  ✓ If an account exists for that email, a password reset link has been sent. Check your inbox.
+                </p>
+              )}
+
+              {isLogin && (
+                <div className="text-right -mt-1">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={resetLoading}
+                    className="text-xs font-bold text-indigo-500 hover:text-indigo-700 transition-colors disabled:opacity-50"
+                  >
+                    {resetLoading ? 'Sending…' : 'Forgot password?'}
+                  </button>
+                </div>
+              )}
 
               <button
                 type="submit"

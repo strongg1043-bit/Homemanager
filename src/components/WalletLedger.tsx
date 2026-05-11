@@ -69,7 +69,7 @@ export default function WalletLedger({ householdId, childId, childName, currency
       redemptions = snap.docs.map(doc => ({
         type: 'redemption',
         data: { id: doc.id, ...doc.data() } as Redemption,
-        date: (doc.data().createdAt as Timestamp).toDate()
+        date: (doc.data().createdAt as Timestamp | null)?.toDate() ?? new Date(0)
       }));
       updateList();
     });
@@ -201,30 +201,46 @@ export default function WalletLedger({ householdId, childId, childName, currency
                       <div className="flex items-center gap-2">
                         {redemption.proofPhotoUrl && (
                           <button 
-                            onClick={() => setViewingProof(redemption.proofPhotoUrl)}
+                            onClick={() => setViewingProof(redemption.proofPhotoUrl ?? null)}
                             className="text-xs text-indigo-600 font-bold flex items-center gap-1 hover:underline"
                           >
                             <Eye size={12} /> View proof
                           </button>
                         )}
 
+                        {/* BUG-7: Consolidated payment flow.
+                            - Cash redemptions: skip the intermediate "Approve" status and go
+                              directly to the PaymentConfirmationModal (pending → paid in one step).
+                            - Non-cash rewards: keep the simple Approve/Reject flow.
+                        */}
                         {isParent && redemption.status === 'pending' && (
                           <div className="flex items-center gap-2">
-                            <button 
+                            <button
                               onClick={() => handleStatusChange(redemption.id, 'rejected')}
                               className="p-1 text-red-500 hover:bg-red-50 rounded"
                             >
                               <XCircle size={18} />
                             </button>
-                            <button 
-                              onClick={() => handleStatusChange(redemption.id, 'approved')}
-                              className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-lg shadow-sm"
-                            >
-                              Approve
-                            </button>
+                            {isCash && onRequestPayment ? (
+                              <button
+                                onClick={() => onRequestPayment(redemption)}
+                                className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-lg flex items-center gap-1 shadow-sm"
+                              >
+                                <Banknote size={14} /> Pay Now
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleStatusChange(redemption.id, 'approved')}
+                                className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-lg shadow-sm"
+                              >
+                                Approve
+                              </button>
+                            )}
                           </div>
                         )}
 
+                        {/* Fallback: show "Mark as Paid" if a cash redemption reached
+                            "approved" state via an older flow or external update */}
                         {isParent && redemption.status === 'approved' && isCash && onRequestPayment && (
                           <button
                             onClick={() => onRequestPayment(redemption)}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, query, where, orderBy, limit, onSnapshot, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, limit, onSnapshot, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { Notification } from '../types';
 import { Bell, Check, Trash2, X, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23,7 +23,6 @@ export default function NotificationBell({ householdId, userId }: Props) {
     const q = query(
       collection(db, 'households', householdId, 'notifications'),
       where('recipientId', '==', userId),
-      orderBy('createdAt', 'desc'),
       limit(20)
     );
 

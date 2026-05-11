@@ -40,10 +40,13 @@ service cloud.firestore {
           // Action: Point Deduction (Redemption)
           (incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints']) && incoming().totalPoints < existing().totalPoints)
         )) ||
-        // Parent update (Task approval or Refund) — only allowed to increase totalPoints (award points)
+        // Parent update (Task approval or Refund) — only allowed to increase totalPoints (award points).
+        // SEC-9: cap the increment to the max allowed task pointValue (10 000) so a parent
+        // cannot arbitrarily inflate a child's balance in a single write.
         (getUser(request.auth.uid).role == 'parent' && getUser(request.auth.uid).householdId == existing().householdId &&
          incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints']) &&
-         incoming().totalPoints >= existing().totalPoints)
+         incoming().totalPoints >= existing().totalPoints &&
+         incoming().totalPoints - existing().totalPoints <= 10000)
       );
     }
 
@@ -81,9 +84,13 @@ service cloud.firestore {
         allow read: if isMember(hid);
         // Require verified email before a child can redeem — prevents
         // unverified accounts from initiating financial transactions.
-        // SEC-10: getAfter ensures the batch's totalPoints decrement leaves balance >= 0,
-        // preventing a child from overdrawing their wallet even via concurrent requests.
+        // SEC-10: Two-layer balance guard —
+        //   1. Pre-check: child's current balance must cover the spend (blocks underfunded requests
+        //      even when the client omits the points-deduction write from the batch).
+        //   2. getAfter: the batch must leave balance >= 0 (catches concurrent double-spends
+        //      when both reads see the same starting balance).
         allow create: if isVerified() && isChild(hid) && incoming().childId == request.auth.uid && isValidRedemption(incoming()) &&
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.totalPoints >= incoming().pointsSpent &&
                       getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.totalPoints >= 0;
         allow update: if isParent(hid) && (
           // Action: Approve/Reject/Pay
@@ -129,16 +136,20 @@ service cloud.firestore {
     }
 
     function isValidTask(task) {
+      // BUG-3: cap pointValue to 10 000 — prevents "Identity Spoofing" payload #1
+      // (child proposes a task with a 1,000,000-point reward).
       return task.title is string && task.title.size() <= 100 &&
-             task.pointValue is number && task.pointValue >= 0 &&
-             task.assignedTo is string && 
+             task.pointValue is number && task.pointValue >= 1 && task.pointValue <= 10000 &&
+             task.assignedTo is string &&
              task.status == 'pending' &&
              task.householdId is string;
     }
 
     function isValidRedemption(red) {
+      // Require pointsSpent > 0 so children can't create zero-cost redemptions,
+      // and cap at 100 000 points (practical upper limit for any child's balance).
       return red.title is string && red.title.size() <= 100 &&
-             red.pointsSpent is number && red.pointsSpent >= 0 &&
+             red.pointsSpent is number && red.pointsSpent >= 1 && red.pointsSpent <= 100000 &&
              red.childId == request.auth.uid &&
              red.status == 'pending' &&
              red.type in ['reward', 'cash'] &&

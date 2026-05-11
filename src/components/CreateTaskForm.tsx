@@ -233,11 +233,13 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Reward (Points)</label>
                 <input
                   type="number"
-                  min="0"
+                  min="1"
+                  max="10000"
                   value={pointValue}
-                  onChange={(e) => setPointValue(parseInt(e.target.value))}
+                  onChange={(e) => setPointValue(Math.max(1, Math.min(10000, parseInt(e.target.value) || 1)))}
                   className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                 />
+                <p className="text-[10px] text-slate-400 font-bold mt-1 ml-1">Max 10,000 points per task</p>
               </div>
             </div>
           </div>

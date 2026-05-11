@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { Task, Redemption, UserProfile } from '../types';
@@ -31,6 +31,23 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
   const [outcome, setOutcome] = useState(OUTCOMES[0]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const isMounted = useRef(true);
+
+  // Guard against state updates after unmount
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
+  // Reset form state whenever the modal is closed, so re-opening is always clean
+  useEffect(() => {
+    if (!isOpen) {
+      setSuccess(false);
+      setReason('');
+      setOutcome(OUTCOMES[0]);
+      setLoading(false);
+    }
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,11 +85,11 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
         );
       }
 
-      setSuccess(true);
+      if (isMounted.current) setSuccess(true);
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (isMounted.current) setLoading(false);
     }
   };
 
