@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
-import { doc, increment, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { doc, increment, serverTimestamp, writeBatch, updateDoc } from 'firebase/firestore';
 import { Task, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { createNotification } from '../lib/notifications';

@@ -40,9 +40,10 @@ service cloud.firestore {
           // Action: Point Deduction (Redemption)
           (incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints']) && incoming().totalPoints < existing().totalPoints)
         )) ||
-        // Parent update (Task approval or Refund)
+        // Parent update (Task approval or Refund) — only allowed to increase totalPoints (award points)
         (getUser(request.auth.uid).role == 'parent' && getUser(request.auth.uid).householdId == existing().householdId &&
-         incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints']))
+         incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints']) &&
+         incoming().totalPoints >= existing().totalPoints)
       );
     }
 
@@ -80,7 +81,10 @@ service cloud.firestore {
         allow read: if isMember(hid);
         // Require verified email before a child can redeem — prevents
         // unverified accounts from initiating financial transactions.
-        allow create: if isVerified() && isChild(hid) && incoming().childId == request.auth.uid && isValidRedemption(incoming());
+        // SEC-10: getAfter ensures the batch's totalPoints decrement leaves balance >= 0,
+        // preventing a child from overdrawing their wallet even via concurrent requests.
+        allow create: if isVerified() && isChild(hid) && incoming().childId == request.auth.uid && isValidRedemption(incoming()) &&
+                      getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.totalPoints >= 0;
         allow update: if isParent(hid) && (
           // Action: Approve/Reject/Pay
           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approvedAt', 'paidAt', 'proofPhotoUrl', 'note', 'paidBy', 'paidByName', 'paymentMethod', 'paymentReference', 'paymentNote'])

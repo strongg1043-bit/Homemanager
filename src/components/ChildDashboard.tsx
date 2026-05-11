@@ -113,7 +113,7 @@ export default function ChildDashboard({ profile }: Props) {
         description: requestReason.trim(),
         assignedTo: profile.uid,
         assignedToName: profile.displayName,
-        pointValue: suggestedPoints,
+        pointValue: Math.min(Math.max(1, suggestedPoints || 1), 9999),
         taskType: 'adhoc_date',
         status: 'proposed', 
         kpi: 'Parent will define quality standards',
@@ -678,8 +678,9 @@ export default function ChildDashboard({ profile }: Props) {
                   <input
                     type="number"
                     min="1"
+                    max={9999}
                     value={suggestedPoints}
-                    onChange={(e) => setSuggestedPoints(parseInt(e.target.value))}
+                    onChange={(e) => setSuggestedPoints(Math.min(parseInt(e.target.value) || 1, 9999))}
                     className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
                   />
                 </div>

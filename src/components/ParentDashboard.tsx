@@ -47,6 +47,8 @@ export default function ParentDashboard({ profile }: Props) {
   const [selectedTaskForDispute, setSelectedTaskForDispute] = useState<Task | null>(null);
   const [selectedRedemptionForDispute, setSelectedRedemptionForDispute] = useState<Redemption | null>(null);
   const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string | null>(null);
+  const [resolvingDispute, setResolvingDispute] = useState<Dispute | null>(null);
+  const [resolutionText, setResolutionText] = useState('');
 
   const handleDeleteTask = async (taskId: string) => {
     if (!profile.householdId) return;
@@ -149,17 +151,22 @@ export default function ParentDashboard({ profile }: Props) {
     }
   };
 
-  const handleResolveDispute = async (dispute: Dispute) => {
-    const resolution = prompt("How was this dispute resolved?");
-    if (!resolution) return;
-    
+  const handleResolveDispute = (dispute: Dispute) => {
+    setResolvingDispute(dispute);
+    setResolutionText('');
+  };
+
+  const handleConfirmResolve = async () => {
+    if (!resolvingDispute || !resolutionText.trim()) return;
     try {
-      await updateDoc(doc(db, 'households', profile.householdId, 'disputes', dispute.id), {
+      await updateDoc(doc(db, 'households', profile.householdId, 'disputes', resolvingDispute.id), {
         status: 'resolved',
-        resolution,
+        resolution: resolutionText.trim(),
         resolvedAt: serverTimestamp(),
-        resolvedBy: profile.uid
+        resolvedBy: profile.uid,
       });
+      setResolvingDispute(null);
+      setResolutionText('');
     } catch (err) {
       console.error(err);
     }
@@ -711,6 +718,56 @@ export default function ParentDashboard({ profile }: Props) {
           members={members}
         />
       )}
+
+      {/* Dispute Resolution Modal */}
+      <AnimatePresence>
+        {resolvingDispute && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white p-8 rounded-[2rem] w-full max-w-md shadow-2xl space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-black text-slate-900">Resolve Dispute</h3>
+                <button onClick={() => setResolvingDispute(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
+                <p className="text-xs font-black text-red-600 uppercase tracking-widest mb-1">{resolvingDispute.raisedByName}</p>
+                <p className="text-sm font-bold text-slate-700">{resolvingDispute.reason}</p>
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">How was this resolved?</label>
+                <textarea
+                  value={resolutionText}
+                  onChange={(e) => setResolutionText(e.target.value)}
+                  placeholder="Describe the outcome..."
+                  rows={4}
+                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-bold text-slate-900 focus:border-indigo-600 focus:bg-white transition-all outline-none resize-none"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setResolvingDispute(null)}
+                  className="flex-1 py-3 bg-slate-100 text-slate-600 font-black rounded-2xl text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={!resolutionText.trim()}
+                  onClick={handleConfirmResolve}
+                  className="flex-1 py-3 bg-red-600 text-white font-black rounded-2xl text-xs uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg disabled:opacity-50"
+                >
+                  Mark Resolved
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Full-size Receipt Modal */}
       <AnimatePresence>

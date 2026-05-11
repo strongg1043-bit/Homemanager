@@ -30,6 +30,7 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
   const [reason, setReason] = useState('');
   const [outcome, setOutcome] = useState(OUTCOMES[0]);
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,11 +68,9 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
         );
       }
 
-      onClose();
-      alert('Dispute raised. A family manager will be notified.');
+      setSuccess(true);
     } catch (err) {
       console.error(err);
-      alert('Failed to raise dispute');
     } finally {
       setLoading(false);
     }
@@ -112,6 +111,23 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
               </button>
             </div>
 
+            {success ? (
+              <div className="p-6 text-center space-y-6">
+                <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                  <Send size={28} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 mb-1">Dispute Raised!</h3>
+                  <p className="text-slate-500 font-medium text-sm">A family manager has been notified and will review your dispute.</p>
+                </div>
+                <button
+                  onClick={() => { setSuccess(false); setReason(''); onClose(); }}
+                  className="w-full bg-slate-900 text-white p-4 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-700 transition-all"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
               <div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">What's the issue?</p>
@@ -161,6 +177,7 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
                 ⚠️ Abuse of the dispute system can affect your trust score.
               </p>
             </form>
+            )}
           </motion.div>
         </div>
       )}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, orderBy, updateDoc, doc, Timestamp, increment } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, updateDoc, doc, Timestamp, increment, writeBatch } from 'firebase/firestore';
+import { auth } from '../firebase';
 import { Task, Redemption } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -67,7 +68,7 @@ export default function WalletLedger({ householdId, childId, childName, currency
       tasks = snap.docs.map(doc => ({
         type: 'task',
         data: { id: doc.id, ...doc.data() } as Task,
-        date: (doc.data().approvedAt as Timestamp).toDate()
+        date: (doc.data().approvedAt as Timestamp | null)?.toDate() ?? new Date(0)
       }));
       updateList();
     });
@@ -115,7 +116,10 @@ export default function WalletLedger({ householdId, childId, childName, currency
         status: 'paid',
         paidAt: Timestamp.now(),
         proofPhotoUrl: proofPreview,
-        note: note.trim() || null
+        note: note.trim() || null,
+        paidBy: auth.currentUser?.uid ?? null,
+        paidByName: auth.currentUser?.displayName ?? null,
+        paymentMethod: 'cash',
       });
       setPaymentModalRedemption(null);
       setProofPreview(null);
@@ -129,17 +133,18 @@ export default function WalletLedger({ householdId, childId, childName, currency
 
   const handleStatusChange = async (redemptionId: string, status: 'approved' | 'rejected') => {
     try {
-      const updates: any = { status, approvedAt: Timestamp.now() };
       if (status === 'rejected') {
-        // Refund points
+        // Atomic batch: refund points + status update land together or not at all.
         const redemption = (transactions.find(t => t.type === 'redemption' && t.data.id === redemptionId)?.data) as Redemption;
         if (redemption) {
-          await updateDoc(doc(db, 'users', childId), {
-            totalPoints: increment(redemption.pointsSpent)
-          });
+          const batch = writeBatch(db);
+          batch.update(doc(db, 'users', childId), { totalPoints: increment(redemption.pointsSpent) });
+          batch.update(doc(db, 'households', householdId, 'redemptions', redemptionId), { status, approvedAt: Timestamp.now() });
+          await batch.commit();
+          return;
         }
       }
-      await updateDoc(doc(db, 'households', householdId, 'redemptions', redemptionId), updates);
+      await updateDoc(doc(db, 'households', householdId, 'redemptions', redemptionId), { status, approvedAt: Timestamp.now() });
     } catch (err) {
       console.error(err);
     }
