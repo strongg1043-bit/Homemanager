@@ -122,7 +122,22 @@ export default function Auth() {
     } catch (err: unknown) {
       // Sign out if auth user was created but batch failed, to avoid ghost accounts
       if (auth.currentUser) await signOut(auth).catch(() => {});
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
+      // Map Firebase auth error codes to user-friendly messages instead of exposing raw SDK strings
+      const code = (err as { code?: string }).code;
+      const AUTH_ERRORS: Record<string, string> = {
+        'auth/invalid-credential':      'Incorrect email or password. Please try again.',
+        'auth/user-not-found':          'No account found with that email address.',
+        'auth/wrong-password':          'Incorrect email or password. Please try again.',
+        'auth/email-already-in-use':    'An account with this email already exists. Try signing in instead.',
+        'auth/weak-password':           'Password must be at least 6 characters.',
+        'auth/invalid-email':           'Please enter a valid email address.',
+        'auth/too-many-requests':       'Too many failed attempts. Please wait a few minutes and try again.',
+        'auth/network-request-failed':  'Network error. Please check your connection and try again.',
+        'auth/user-disabled':           'This account has been disabled. Please contact support.',
+      };
+      const message = (code && AUTH_ERRORS[code])
+        ?? (err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
+      setError(message);
     } finally {
       setLoading(false);
     }
