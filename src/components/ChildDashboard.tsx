@@ -254,7 +254,7 @@ export default function ChildDashboard({ profile }: Props) {
   else if (trustScore >= 70) { trustLabel = "✅ Reliable"; trustColor = "bg-blue-500"; }
   else if (trustScore >= 40) { trustLabel = "📈 Building trust"; trustColor = "bg-amber-500"; }
 
-  const familyColourHexHex = getFamilyColour(household?.familyColourHex || 'indigo');
+  const familyColourHex = getFamilyColour(household?.familyColour || 'indigo');
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">

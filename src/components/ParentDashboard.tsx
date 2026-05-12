@@ -13,7 +13,6 @@ import NotificationBell from './NotificationBell';
 import AuditTrailDrawer from './AuditTrailDrawer';
 import PaymentConfirmationModal from './PaymentConfirmationModal';
 import DisputeModal from './DisputeModal';
-import EmailSettings from './EmailSettings';
 import InviteMemberCard from './InviteMemberCard';
 import InviteParentCard from './InviteParentCard';
 import { createNotification } from '../lib/notifications';
@@ -23,7 +22,7 @@ import {
   Layout, LogOut, CheckCircle, Clock, Users, Settings, 
   Plus, MessageSquare, ShieldCheck, Star, Sparkles,
   ChevronRight, ArrowUpRight, AlertCircle, Trash2, 
-  History, AlertTriangle, Receipt, Eye, X, Mail
+  History, AlertTriangle, Receipt, Eye, X
 } from 'lucide-react';
 
 interface Props {
@@ -32,7 +31,6 @@ interface Props {
 
 export default function ParentDashboard({ profile }: Props) {
   const [activeTab, setActiveTab] = useState<'review' | 'family' | 'settings'>('review');
-  const [activeSettingsTab, setActiveSettingsTab] = useState<'general' | 'email'>('general');
   const [household, setHousehold] = useState<Household | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
@@ -186,7 +184,7 @@ export default function ParentDashboard({ profile }: Props) {
   const openDisputes = disputes.filter(d => d.status === 'open');
   const children = members.filter(m => m.role === 'child');
 
-  const familyColourHexHex = getFamilyColour(household?.familyColourHex || 'indigo');
+  const familyColourHex = getFamilyColour(household?.familyColour || 'indigo');
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
@@ -594,23 +592,7 @@ export default function ParentDashboard({ profile }: Props) {
             >
               <h2 className="text-3xl font-black text-slate-900">Settings</h2>
               
-              <div className="flex gap-4 p-1 bg-slate-100 rounded-2xl w-fit mb-8">
-                <button 
-                  onClick={() => setActiveSettingsTab('general')}
-                  className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSettingsTab === 'general' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  General
-                </button>
-                <button 
-                  onClick={() => setActiveSettingsTab('email')}
-                  className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeSettingsTab === 'email' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  Email
-                </button>
-              </div>
-
-              {activeSettingsTab === 'general' ? (
-                <div className="space-y-6">
+              <div className="space-y-6">
                   <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
                     <div className="flex items-center justify-between mb-8">
                       <div>
@@ -619,7 +601,7 @@ export default function ParentDashboard({ profile }: Props) {
                       </div>
                       <Settings className="text-slate-200" size={32} />
                     </div>
-                    
+
                     {household && <HouseholdSetup profile={profile} isEditing={true} existingData={household} />}
                   </div>
 
@@ -627,9 +609,6 @@ export default function ParentDashboard({ profile }: Props) {
                      {household && <HouseholdSettings household={household} />}
                   </div>
                 </div>
-              ) : (
-                <EmailSettings />
-              )}
 
               <SuggestFeature 
                 userId={profile.uid}

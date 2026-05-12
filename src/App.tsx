@@ -4,16 +4,15 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { UserProfile } from './types';
 import Auth from './components/Auth';
-import HouseholdSetup from './components/HouseholdSetup';
 import ParentDashboard from './components/ParentDashboard';
 import ChildDashboard from './components/ChildDashboard';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
 const LoadingSpinner = () => (
   <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4">
@@ -32,6 +31,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(auth.currentUser);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   useEffect(() => {
     let unsubProfile: (() => void) | null = null;
@@ -39,37 +39,25 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        // Fetch profile
-        unsubProfile = onSnapshot(doc(db, 'users', firebaseUser.uid), async (snap) => {
-          if (snap.exists()) {
-            const profileData = snap.data() as UserProfile;
-            
-            // Safety check: ensure email matches or sync it
-            if (!profileData.email && firebaseUser.email) {
-              await updateDoc(doc(db, 'users', firebaseUser.uid), {
-                email: firebaseUser.email
-              });
-            } else if (profileData.email && firebaseUser.email && profileData.email.toLowerCase() !== firebaseUser.email.toLowerCase()) {
-              console.warn("Profile email mismatch:", profileData.email, firebaseUser.email);
-            }
+        setProfileError(null);
 
-            setProfile(profileData);
-            setProfileLoading(false);
+        unsubProfile = onSnapshot(doc(db, 'users', firebaseUser.uid), (snap) => {
+          if (snap.exists()) {
+            setProfile(snap.data() as UserProfile);
           } else {
-            // Profile doesn't exist — let Auth handle proper account creation
-            // so the user can choose their own role and display name.
-            // BUG-10: never auto-create a profile with a hardcoded role here,
-            // as social-login users would silently land in ParentDashboard.
+            // Authenticated but no Firestore profile — account is incomplete
             setProfile(null);
-            setProfileLoading(false);
           }
+          setProfileLoading(false);
         }, (err) => {
-          console.error(err);
+          console.error('Profile listener error:', err);
+          setProfileError(err.message || 'Could not load your profile.');
           setProfileLoading(false);
         });
       } else {
         setUser(null);
         setProfile(null);
+        setProfileError(null);
         setProfileLoading(false);
         if (unsubProfile) unsubProfile();
       }
@@ -81,16 +69,54 @@ export default function App() {
     };
   }, []);
 
-  if (!user && !profileLoading) {
-    return <Auth />;
-  }
-
-  if (user && profileLoading) {
-    return <LoadingSpinner />;
-  }
-
   if (profileLoading) {
     return <LoadingSpinner />;
+  }
+
+  // Authenticated but profile failed to load (e.g. Firestore permission error)
+  if (user && profileError) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-10 max-w-md w-full text-center space-y-6">
+          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto">
+            <AlertTriangle size={32} />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-slate-900 mb-2">Couldn't load your profile</h2>
+            <p className="text-slate-500 text-sm font-medium">There was a problem reading your account data. Please sign out and sign back in.</p>
+          </div>
+          <button
+            onClick={() => signOut(auth)}
+            className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-slate-900 transition-all shadow-lg shadow-indigo-100"
+          >
+            Sign Out & Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Authenticated but no Firestore profile — account setup incomplete
+  if (user && !profile) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl p-10 max-w-md w-full text-center space-y-6">
+          <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mx-auto">
+            <AlertTriangle size={32} />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-slate-900 mb-2">Account setup incomplete</h2>
+            <p className="text-slate-500 text-sm font-medium">Your account exists but your family profile wasn't fully set up. Please sign out and register again.</p>
+          </div>
+          <button
+            onClick={() => signOut(auth)}
+            className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-slate-900 transition-all shadow-lg shadow-indigo-100"
+          >
+            Sign Out & Register Again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -108,7 +134,7 @@ export default function App() {
           <ParentDashboard profile={profile} />
         </motion.div>
       ) : (
-        <motion.div key="auth-fallback" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+        <motion.div key="auth" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <Auth />
         </motion.div>
       )}

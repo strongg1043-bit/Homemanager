@@ -35,8 +35,8 @@ service cloud.firestore {
       allow update: if isSignedIn() && (
         // Self-update
         (request.auth.uid == userId && (
-          // Action: Profile update
-          (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'householdId'])) ||
+          // Action: Profile update (display name, household, email sync, avatar, photo)
+          (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'householdId', 'email', 'avatarColour', 'profilePhoto'])) ||
           // Action: Point Deduction (Redemption)
           (incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints']) && incoming().totalPoints < existing().totalPoints)
         )) ||
