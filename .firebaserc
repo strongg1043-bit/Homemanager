@@ -1,0 +1,17 @@
+{
+  "projects": {
+    "default": "homemanager-c409a"
+  },
+  "targets": {
+    "homemanager-c409a": {
+      "hosting": {
+        "landing": [
+          "home-anchor-landing"
+        ],
+        "app": [
+          "home-anchor-app"
+        ]
+      }
+    }
+  }
+}
