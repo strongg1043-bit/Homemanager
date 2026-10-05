@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { doc, updateDoc, serverTimestamp, setDoc, collection, query, where, getDocs, arrayUnion } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp, setDoc, getDoc, collection, query, where, getDocs, limit, arrayUnion } from 'firebase/firestore';
 import { Household, UserProfile } from '../types';
 import { motion } from 'motion/react';
 import { Sparkles, Camera, Check, Palette, Type, Save, Loader2, X, Plus, Home } from 'lucide-react';
 import { compressToBase64Profile } from '../lib/imageUtils';
 import { COLOUR_OPTIONS, getFamilyColour, generateInviteCode } from '../lib/familyUtils';
+import { sendNewFamilyAdminAlert } from '../lib/email';
 
 interface Props {
   profile: UserProfile;
@@ -25,6 +26,20 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
   const [mode, setMode] = useState<'create' | 'join'>('create');
   const [formError, setFormError] = useState('');
   const [codeCopied, setCodeCopied] = useState(false);
+  const [timezone, setTimezone] = useState(
+    existingData?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'Africa/Johannesburg'
+  );
+
+  // Auto-fill join code from URL params (magic link invite)
+  useEffect(() => {
+    if (isEditing) return;
+    const params = new URLSearchParams(window.location.search);
+    const codeParam = params.get('code');
+    if (codeParam) {
+      setJoinCode(codeParam.toUpperCase());
+      setMode('join');
+    }
+  }, [isEditing]);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -46,16 +61,30 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
     setFormError('');
     setLoading(true);
     try {
-      const q = query(collection(db, 'households'), where('inviteCode', '==', joinCode.toUpperCase()));
-      const snap = await getDocs(q);
-      if (snap.empty) {
+      // Primary: inviteCodes single-doc lookup. Fallback: limit(1) query for pre-migration households.
+      type InviteLookup = { householdId: string; householdName?: string; onboardingTaskPoints?: number };
+      let inviteLookup: InviteLookup | null = null;
+
+      const inviteSnap = await getDoc(doc(db, 'inviteCodes', joinCode.toUpperCase()));
+      if (inviteSnap.exists()) {
+        inviteLookup = inviteSnap.data() as InviteLookup;
+      } else {
+        const q = query(collection(db, 'households'), where('inviteCode', '==', joinCode.toUpperCase()), limit(1));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const hd = snap.docs[0].data();
+          inviteLookup = { householdId: snap.docs[0].id, householdName: hd.name, onboardingTaskPoints: hd.onboardingTaskPoints };
+        }
+      }
+
+      if (!inviteLookup) {
         setFormError('Invalid invite code. Please check and try again.');
         setLoading(false);
         return;
       }
 
-      const hDoc = snap.docs[0];
-      const householdId = hDoc.id;
+      const householdId = inviteLookup.householdId;
+      const hData = { name: inviteLookup.householdName || 'Your Family', onboardingTaskPoints: inviteLookup.onboardingTaskPoints };
 
       await updateDoc(doc(db, 'households', householdId), {
         members: arrayUnion(profile.uid)
@@ -64,6 +93,45 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
       await updateDoc(doc(db, 'users', profile.uid), {
         householdId: householdId
       });
+
+      // Auto-create the registration task if the parent set an onboarding reward
+      const onboardingPts = typeof hData.onboardingTaskPoints === 'number' ? hData.onboardingTaskPoints : 0;
+      if (onboardingPts > 0) {
+        try {
+          const taskRef = doc(collection(db, 'households', householdId, 'tasks'));
+          await setDoc(taskRef, {
+            id: taskRef.id,
+            householdId,
+            title: '🎉 Complete Your Registration',
+            description: 'Welcome to Home Anchor! Mark this task complete to confirm you\'ve joined the family and understand how the system works — and to claim your welcome reward!',
+            assignedTo: profile.uid,
+            assignedToName: profile.displayName,
+            pointValue: onboardingPts,
+            taskType: 'adhoc_date',
+            status: 'pending',
+            kpi: 'Register on Home Anchor and mark this task complete',
+            kpiLocked: true,
+            evidenceType: 'any',
+            requiresProof: false,
+            proposedBy: null,
+            rewardLocked: true,
+            isOnboardingTask: true,
+            missedCount: 0,
+            lastMissedAt: null,
+            createdAt: serverTimestamp(),
+            completedAt: null,
+            approvedAt: null,
+            beforePhotoUrl: null,
+            proofPhotoUrl: null,
+            dueDate: null,
+            recurrence: null,
+            retryNote: null,
+          });
+        } catch (taskErr) {
+          // Non-fatal — task failure should never block the join flow
+          console.error('Failed to create onboarding task:', taskErr);
+        }
+      }
 
       if (onComplete) onComplete();
     } catch (err) {
@@ -103,18 +171,38 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
           minCashOut: 100,
           createdAt: serverTimestamp(),
           inviteCode: code,
+          timezone: timezone,
           updatedAt: serverTimestamp()
+        });
+
+        // Register invite code in secure lookup collection
+        await setDoc(doc(db, 'inviteCodes', code), {
+          householdId,
+          householdName: name.trim(),
+          onboardingTaskPoints: 0,
         });
 
         await updateDoc(doc(db, 'users', profile.uid), {
           householdId: householdId
         });
+
+        // Fire-and-forget — notify admin of new registration; never blocks the user
+        sendNewFamilyAdminAlert(
+          name.trim(),
+          profile.displayName || 'Unknown',
+          profile.email || '',
+          householdId,
+        ).catch(() => {});
+
+        // Signal to ParentDashboard to show the onboarding wizard after this household creation
+        try { sessionStorage.setItem('ha_new_household', profile.uid); } catch { /* ignore */ }
       } else {
         await updateDoc(doc(db, 'households', householdId), {
           name: name.trim(),
           familyMotto: motto.trim(),
           familyColour: colour,
           familyLogo: logo,
+          timezone: timezone,
           updatedAt: serverTimestamp()
         });
       }
@@ -143,7 +231,7 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
                 <Sparkles size={40} />
               </div>
               <h2 className="text-3xl font-black text-slate-900 mb-2">Welcome!</h2>
-              <p className="text-slate-500 font-medium tracking-tight">Let's get your family setup on HomeManager.</p>
+              <p className="text-slate-500 font-medium tracking-tight">Let's get your family setup on Home Anchor.</p>
             </div>
 
             <div className="flex bg-slate-100 p-1 rounded-2xl mb-8">
@@ -234,6 +322,42 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
                     placeholder="Supporting each other every day!"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Timezone</label>
+                <select
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-3xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm"
+                >
+                  {[
+                    ['Africa/Johannesburg', 'South Africa (SAST +02:00)'],
+                    ['Africa/Lagos',        'Nigeria / West Africa (WAT +01:00)'],
+                    ['Africa/Nairobi',      'Kenya / East Africa (EAT +03:00)'],
+                    ['Africa/Cairo',        'Egypt (EET +02:00)'],
+                    ['Europe/London',       'United Kingdom (GMT/BST)'],
+                    ['Europe/Paris',        'Central Europe (CET +01:00)'],
+                    ['Europe/Helsinki',     'Eastern Europe (EET +02:00)'],
+                    ['America/New_York',    'US Eastern (EST -05:00)'],
+                    ['America/Chicago',     'US Central (CST -06:00)'],
+                    ['America/Denver',      'US Mountain (MST -07:00)'],
+                    ['America/Los_Angeles', 'US Pacific (PST -08:00)'],
+                    ['America/Sao_Paulo',   'Brazil (BRT -03:00)'],
+                    ['Asia/Dubai',          'Gulf (GST +04:00)'],
+                    ['Asia/Kolkata',        'India (IST +05:30)'],
+                    ['Asia/Singapore',      'Singapore / Malaysia (SGT +08:00)'],
+                    ['Asia/Tokyo',          'Japan (JST +09:00)'],
+                    ['Australia/Sydney',    'Australia Eastern (AEST +10:00)'],
+                    ['Pacific/Auckland',    'New Zealand (NZST +12:00)'],
+                    ['UTC',                 'UTC'],
+                  ].map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-slate-400 font-bold mt-1 ml-1">
+                  Auto-detected · Used to determine when daily tasks expire
+                </p>
               </div>
 
               <div>

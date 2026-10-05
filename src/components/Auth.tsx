@@ -1,13 +1,88 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, collection, getDocs, query, where, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, collection, getDocs, query, where, limit, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
 import { Role } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Layout, LogIn, UserPlus, Star, Shield, ArrowRight, Copy, Check, Sparkles } from 'lucide-react';
+import {
+  LogIn, UserPlus, Star, Shield, ArrowRight, Copy, Check, Sparkles,
+  ClipboardCheck, Banknote, ShieldCheck, RefreshCw, Anchor,
+} from 'lucide-react';
 import { generateInviteCode } from '../lib/familyUtils';
 import { sendWelcomeEmail } from '../lib/email';
 
+// ── Brand colours ────────────────────────────────────────────────────────────
+const NAVY  = '#1B3A5C';
+const TEAL  = '#2E7D6B';
+const AMBER = '#F5A35A';
+const LINEN = '#F7F3EE';
+
+// ── Landing panel ─────────────────────────────────────────────────────────────
+const HIGHLIGHTS = [
+  { icon: <ClipboardCheck size={16} />, colour: TEAL,  text: 'Mission-based tasks with clear KPIs and photo proof' },
+  { icon: <Banknote       size={16} />, colour: AMBER, text: 'Points convert to real cash — settled by parents'      },
+  { icon: <ShieldCheck    size={16} />, colour: TEAL,  text: 'Trust scores and audit trails for full accountability'  },
+  { icon: <RefreshCw      size={16} />, colour: AMBER, text: 'Daily, weekly and monthly tasks reset automatically'    },
+];
+
+function LandingPanel() {
+  return (
+    <div
+      className="lg:w-3/5 flex flex-col justify-center"
+      style={{ backgroundColor: NAVY }}
+    >
+      <div className="px-10 py-14">
+        {/* Logo */}
+        <div className="flex items-center gap-3 mb-12">
+          <div
+            className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg"
+            style={{ backgroundColor: TEAL }}
+          >
+            <Anchor size={22} color="#fff" />
+          </div>
+          <span className="text-white font-black text-xl tracking-tight">Home Anchor</span>
+        </div>
+
+        {/* Headline */}
+        <h1
+          className="text-4xl lg:text-5xl font-black leading-tight mb-5"
+          style={{ color: LINEN }}
+        >
+          Every home needs<br />
+          <span style={{ color: AMBER }}>an anchor.</span>
+        </h1>
+
+        {/* One-liner */}
+        <p className="text-base font-medium leading-relaxed mb-10" style={{ color: '#A8C4D4' }}>
+          Turn chores into missions, reward effort with real points, and build
+          accountability that lasts a lifetime.
+        </p>
+
+        {/* Four key highlights */}
+        <div className="space-y-4 mb-12">
+          {HIGHLIGHTS.map(({ icon, colour, text }) => (
+            <div key={text} className="flex items-center gap-3">
+              <div
+                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: colour + '22', color: colour }}
+              >
+                {icon}
+              </div>
+              <p className="text-sm font-medium" style={{ color: '#A8C4D4' }}>{text}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <p className="text-xs font-medium" style={{ color: '#4A7A95' }}>
+          Free · Built for real families · Independent developer
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [step, setStep] = useState<'role' | 'form' | 'success'>('role');
@@ -24,6 +99,21 @@ export default function Auth() {
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
+  // Pre-fill join code AND email from magic invite link (?code=XXXX&email=child@x.com)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const emailParam = params.get('email');
+    if (code) {
+      setIsLogin(false);
+      setRole('child');
+      setStep('form');
+      setParentAction('join');
+      setJoinCode(code.toUpperCase());
+      if (emailParam) setEmail(emailParam);
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -34,49 +124,72 @@ export default function Auth() {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
         if (!role) throw new Error('Please select a role');
-        
+
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
         let householdId = '';
 
-        // Build the user profile doc — shared across all paths
         const userDocRef = doc(db, 'users', user.uid);
         const userProfile = {
           uid: user.uid,
           displayName: displayName.trim(),
           email: user.email,
           role: role,
-          householdId: '', // filled below per path
+          householdId: '',
           totalPoints: 0,
           createdAt: serverTimestamp(),
           profilePhoto: null,
-          avatarColour: 'indigo',
+          avatarColour: '#1B3A5C',
           trustScore: 100,
-          badges: []
+          badges: [],
         };
 
         if (parentAction === 'join') {
-          // --- JOIN path (child or parent) ---
-          // Look up the household first, before touching anything
-          const q = query(collection(db, 'households'), where('inviteCode', '==', joinCode.toUpperCase()));
-          const snap = await getDocs(q);
-          if (snap.empty) throw new Error('Invalid invite code. Please check and try again.');
-          const hDoc = snap.docs[0];
-          householdId = hDoc.id;
-          const householdData = hDoc.data();
+          // Primary: fast single-doc lookup via inviteCodes collection (no enumeration risk)
+          // Fallback: limit(1) query for households created before the inviteCodes migration
+          type InviteLookup = { householdId: string; householdName?: string; onboardingTaskPoints?: number };
+          let inviteLookup: InviteLookup | null = null;
 
-          // Batch: add uid to household.members + create user doc atomically
+          const inviteSnap = await getDoc(doc(db, 'inviteCodes', joinCode.toUpperCase()));
+          if (inviteSnap.exists()) {
+            inviteLookup = inviteSnap.data() as InviteLookup;
+          } else {
+            const q = query(collection(db, 'households'), where('inviteCode', '==', joinCode.toUpperCase()), limit(1));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+              const hd = snap.docs[0].data();
+              inviteLookup = { householdId: snap.docs[0].id, householdName: hd.name, onboardingTaskPoints: hd.onboardingTaskPoints };
+            }
+          }
+
+          if (!inviteLookup) throw new Error('Invalid invite code. Please check and try again.');
+          householdId = inviteLookup.householdId;
+          const householdData = {
+            name: inviteLookup.householdName || 'Your Family',
+            onboardingTaskPoints: inviteLookup.onboardingTaskPoints,
+          };
+
+          // Credit the registration reward directly into totalPoints so it appears
+          // in the child's wallet immediately — no task submission or parent approval needed.
+          const onboardingPts = role === 'child' && typeof householdData.onboardingTaskPoints === 'number'
+            ? householdData.onboardingTaskPoints : 0;
+
           const batch = writeBatch(db);
           batch.update(doc(db, 'households', householdId), { members: arrayUnion(user.uid) });
-          batch.set(userDocRef, { ...userProfile, householdId });
+          // Set showChildOnboarding so ChildDashboard shows the welcome screen on first login
+          const extraFlags = role === 'child' ? { showChildOnboarding: true } : {};
+          batch.set(userDocRef, {
+            ...userProfile,
+            householdId,
+            totalPoints: onboardingPts, // ← credited immediately; overrides the 0 in userProfile
+            ...extraFlags,
+          });
           await batch.commit();
 
           if (user.email) {
             sendWelcomeEmail(user.email, displayName, householdData.name || 'New Family', role);
           }
-
         } else if (parentAction === 'create') {
-          // --- CREATE path (child or parent) ---
           const newHouseholdRef = doc(collection(db, 'households'));
           householdId = newHouseholdRef.id;
           const code = generateInviteCode();
@@ -87,7 +200,6 @@ export default function Auth() {
             ? 'Supporting each other every day!'
             : 'Teamwork makes the dream work!';
 
-          // Batch: create household + user doc atomically — no orphan households on failure
           const batch = writeBatch(db);
           batch.set(newHouseholdRef, {
             id: householdId,
@@ -103,16 +215,21 @@ export default function Auth() {
             inviteCode: code,
             familyColour: 'indigo',
             familyLogo: null,
-            familyMotto
+            familyMotto,
           });
-          batch.set(userDocRef, { ...userProfile, householdId });
+          batch.set(userDocRef, { ...userProfile, householdId, showOnboarding: true });
+          // Register invite code in the secure lookup collection
+          batch.set(doc(db, 'inviteCodes', code), {
+            householdId,
+            householdName: familyName,
+            onboardingTaskPoints: 0,
+          });
           await batch.commit();
 
           if (user.email) {
             sendWelcomeEmail(user.email, displayName, familyName, role);
           }
         } else {
-          // Fallback: no action selected — should not reach here due to UI guard
           await signOut(auth);
           throw new Error('Please select whether you are creating or joining a family.');
         }
@@ -122,24 +239,23 @@ export default function Auth() {
         }
       }
     } catch (err: unknown) {
-      // Sign out if auth user was created but batch failed, to avoid ghost accounts
       if (auth.currentUser) await signOut(auth).catch(() => {});
-      // Map Firebase auth error codes to user-friendly messages instead of exposing raw SDK strings
       const code = (err as { code?: string }).code;
       const AUTH_ERRORS: Record<string, string> = {
-        'auth/invalid-credential':      'Incorrect email or password. Please try again.',
-        'auth/user-not-found':          'No account found with that email address.',
-        'auth/wrong-password':          'Incorrect email or password. Please try again.',
-        'auth/email-already-in-use':    'An account with this email already exists. Try signing in instead.',
-        'auth/weak-password':           'Password must be at least 6 characters.',
-        'auth/invalid-email':           'Please enter a valid email address.',
-        'auth/too-many-requests':       'Too many failed attempts. Please wait a few minutes and try again.',
-        'auth/network-request-failed':  'Network error. Please check your connection and try again.',
-        'auth/user-disabled':           'This account has been disabled. Please contact support.',
+        'auth/invalid-credential':     'Incorrect email or password. Please try again.',
+        'auth/user-not-found':         'No account found with that email address.',
+        'auth/wrong-password':         'Incorrect email or password. Please try again.',
+        'auth/email-already-in-use':   'An account with this email already exists. Try signing in instead.',
+        'auth/weak-password':          'Password must be at least 6 characters.',
+        'auth/invalid-email':          'Please enter a valid email address.',
+        'auth/too-many-requests':      'Too many failed attempts. Please wait a few minutes and try again.',
+        'auth/network-request-failed': 'Network error. Please check your connection and try again.',
+        'auth/user-disabled':          'This account has been disabled. Please contact support.',
       };
-      const message = (code && AUTH_ERRORS[code])
-        ?? (err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
-      setError(message);
+      setError(
+        (code && AUTH_ERRORS[code]) ??
+        (err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.')
+      );
     } finally {
       setLoading(false);
     }
@@ -158,7 +274,6 @@ export default function Auth() {
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
       if (code === 'auth/user-not-found' || code === 'auth/invalid-email') {
-        // Don't reveal whether the address exists — just show success to prevent enumeration
         setResetSent(true);
       } else {
         setError('Could not send reset email. Please try again.');
@@ -174,26 +289,35 @@ export default function Auth() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // ── Success screen ───────────────────────────────────────────────────────────
   if (step === 'success') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-emerald-50">
-        <motion.div 
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: LINEN }}>
+        <motion.div
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 text-center"
         >
-          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
+          <div
+            className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
+            style={{ backgroundColor: TEAL + '22', color: TEAL }}
+          >
             <Sparkles size={40} />
           </div>
           <h2 className="text-3xl font-black text-slate-900 mb-2">Welcome!</h2>
-          <p className="text-slate-500 mb-8 font-medium">Your family space is ready. Share this code with your parent to complete setup.</p>
-          
-          <div className="bg-slate-50 p-6 rounded-2xl border-2 border-emerald-100 mb-8 relative">
-            <div className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Invite Code</div>
+          <p className="text-slate-500 mb-8 font-medium">
+            Your family space is ready. Share this code with your parent to complete setup.
+          </p>
+
+          <div className="p-6 rounded-2xl border-2 mb-8 relative" style={{ backgroundColor: LINEN, borderColor: TEAL + '44' }}>
+            <div className="text-[10px] font-black uppercase tracking-widest mb-1" style={{ color: TEAL }}>
+              Invite Code
+            </div>
             <div className="text-4xl font-black tracking-widest text-slate-800">{inviteCode}</div>
-            <button 
+            <button
               onClick={copyCode}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+              className="absolute top-4 right-4 p-2 text-slate-400 transition-colors"
+              style={{ color: copied ? TEAL : undefined }}
             >
               {copied ? <Check size={20} /> : <Copy size={20} />}
             </button>
@@ -201,7 +325,8 @@ export default function Auth() {
 
           <button
             onClick={() => window.location.reload()}
-            className="w-full py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-lg shadow-emerald-100 hover:scale-105 transition-transform"
+            className="w-full py-4 text-white font-black rounded-2xl shadow-lg transition-all hover:opacity-90 active:scale-95"
+            style={{ backgroundColor: TEAL }}
           >
             Go to my Dashboard
           </button>
@@ -210,231 +335,274 @@ export default function Auth() {
     );
   }
 
+  // ── Main layout: landing left + auth right ───────────────────────────────────
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 relative overflow-hidden">
-      {/* Decorative blobs */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-100 rounded-full blur-3xl -mr-32 -mt-32 opacity-50" />
-      <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-100 rounded-full blur-3xl -ml-32 -mb-32 opacity-50" />
+    <div className="min-h-screen flex flex-col lg:flex-row">
 
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-lg bg-white rounded-3xl shadow-xl border border-slate-200 p-8 relative z-10"
-      >
-        <div className="flex justify-center mb-6">
-          <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
-            <Layout size={32} />
+      {/* ── Left: landing content ── */}
+      <LandingPanel />
+
+      {/* ── Right: auth form ── */}
+      <div className="lg:w-2/5 lg:sticky lg:top-0 lg:h-screen flex items-center justify-center overflow-y-auto bg-white p-8">
+        <div className="w-full max-w-sm">
+
+          {/* Logo mark */}
+          <div className="flex justify-center mb-6">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg"
+              style={{ backgroundColor: NAVY }}
+            >
+              <Anchor size={28} color="#fff" />
+            </div>
           </div>
-        </div>
-        
-        <h1 className="text-3xl font-black text-slate-900 text-center mb-1">HomeManager</h1>
-        <p className="text-slate-500 text-center mb-8 font-medium">Empowering family teamwork</p>
 
-        <div className="flex bg-slate-100 p-1 rounded-2xl mb-8">
-          <button
-            onClick={() => { setIsLogin(true); setStep('form'); }}
-            className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${
-              isLogin ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            Sign In
-          </button>
-          <button
-            onClick={() => { setIsLogin(false); setStep('role'); }}
-            className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${
-              !isLogin ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
-            }`}
-          >
-            Sign Up
-          </button>
-        </div>
+          <h2 className="text-2xl font-black text-center mb-1" style={{ color: NAVY }}>
+            Home Anchor
+          </h2>
+          <p className="text-slate-400 text-center text-sm font-medium mb-8">
+            {isLogin ? 'Welcome back — sign in to continue' : 'Start your family journey'}
+          </p>
 
-        <AnimatePresence mode="wait">
-          {!isLogin && step === 'role' ? (
-            <motion.div 
-              key="role-select"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-4"
+          {/* Sign In / Sign Up toggle */}
+          <div className="flex bg-slate-100 p-1 rounded-2xl mb-6">
+            <button
+              onClick={() => { setIsLogin(true); setStep('form'); }}
+              className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${
+                isLogin ? 'bg-white shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              }`}
+              style={isLogin ? { color: NAVY } : {}}
             >
-              <h2 className="text-xl font-bold text-slate-800 text-center mb-6">Who are you?</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => { setRole('child'); setStep('form'); }}
-                  className="group p-6 bg-emerald-50 rounded-3xl border-2 border-transparent hover:border-emerald-500 transition-all text-center"
-                >
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm mx-auto mb-4 group-hover:scale-110 transition-transform">
-                    <Star size={32} />
-                  </div>
-                  <div className="font-black text-emerald-800 uppercase tracking-tight text-xs mb-1">Empowered</div>
-                  <div className="font-bold text-slate-900">I'm a Child</div>
-                </button>
-                <button
-                  onClick={() => { setRole('parent'); setStep('form'); }}
-                  className="group p-6 bg-indigo-50 rounded-3xl border-2 border-transparent hover:border-indigo-500 transition-all text-center"
-                >
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-indigo-600 shadow-sm mx-auto mb-4 group-hover:scale-110 transition-transform">
-                    <Shield size={32} />
-                  </div>
-                  <div className="font-black text-indigo-800 uppercase tracking-tight text-xs mb-1">Manager</div>
-                  <div className="font-bold text-slate-900">I'm a Parent</div>
-                </button>
-              </div>
-            </motion.div>
-          ) : (
-            <motion.form 
-              key="form"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              onSubmit={handleSubmit} 
-              className="space-y-4"
+              Sign In
+            </button>
+            <button
+              onClick={() => { setIsLogin(false); setStep('role'); }}
+              className={`flex-1 py-3 text-sm font-black rounded-xl transition-all ${
+                !isLogin ? 'bg-white shadow-sm' : 'text-slate-400 hover:text-slate-600'
+              }`}
+              style={!isLogin ? { color: TEAL } : {}}
             >
-              {!isLogin && (
-                <>
-                  <div>
-                    <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Your Name</label>
-                    <input
-                      type="text"
-                      required
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-bold"
-                      placeholder="e.g. Alex"
-                    />
-                  </div>
-                  
-                  {role === 'parent' && (
-                    <div className="flex gap-4">
-                      <button
-                        type="button"
-                        onClick={() => setParentAction('create')}
-                        className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${parentAction === 'create' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100' : 'bg-white text-slate-500 border-slate-100'}`}
-                      >
-                        Create Family
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setParentAction('join')}
-                        className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${parentAction === 'join' ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-100' : 'bg-white text-slate-500 border-slate-100'}`}
-                      >
-                        Join Family
-                      </button>
-                    </div>
-                  )}
+              Sign Up
+            </button>
+          </div>
 
-                  {role === 'child' && (
-                    <div className="flex gap-4">
-                      <button
-                        type="button"
-                        onClick={() => setParentAction('create')}
-                        className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${parentAction === 'create' ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-50' : 'bg-white text-slate-500 border-slate-100'}`}
-                      >
-                        Start New Family
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setParentAction('join')}
-                        className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all ${parentAction === 'join' ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-50' : 'bg-white text-slate-500 border-slate-100'}`}
-                      >
-                        Join Existing
-                      </button>
+          <AnimatePresence mode="wait">
+            {/* ── Role selection ── */}
+            {!isLogin && step === 'role' ? (
+              <motion.div
+                key="role-select"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-4"
+              >
+                <h3 className="text-lg font-bold text-slate-800 text-center mb-4">Who are you?</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => { setRole('child'); setStep('form'); }}
+                    className="group p-5 rounded-3xl border-2 border-transparent transition-all text-center"
+                    style={{ backgroundColor: TEAL + '11' }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = TEAL)}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}
+                  >
+                    <div
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm mx-auto mb-3 group-hover:scale-110 transition-transform"
+                      style={{ backgroundColor: '#fff', color: TEAL }}
+                    >
+                      <Star size={28} />
                     </div>
-                  )}
+                    <div className="font-black text-xs uppercase tracking-tight mb-0.5" style={{ color: TEAL }}>
+                      Empowered
+                    </div>
+                    <div className="font-bold text-slate-900 text-sm">I'm a Child</div>
+                  </button>
 
-                  {parentAction === 'join' && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
-                      <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Invite Code</label>
+                  <button
+                    onClick={() => { setRole('parent'); setStep('form'); }}
+                    className="group p-5 rounded-3xl border-2 border-transparent transition-all text-center"
+                    style={{ backgroundColor: NAVY + '0D' }}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = NAVY)}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}
+                  >
+                    <div
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm mx-auto mb-3 group-hover:scale-110 transition-transform"
+                      style={{ backgroundColor: '#fff', color: NAVY }}
+                    >
+                      <Shield size={28} />
+                    </div>
+                    <div className="font-black text-xs uppercase tracking-tight mb-0.5" style={{ color: NAVY }}>
+                      Anchor
+                    </div>
+                    <div className="font-bold text-slate-900 text-sm">I'm a Parent</div>
+                  </button>
+                </div>
+              </motion.div>
+
+            ) : (
+              /* ── Auth form ── */
+              <motion.form
+                key="form"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                onSubmit={handleSubmit}
+                className="space-y-4"
+              >
+                {!isLogin && (
+                  <>
+                    <div>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Your Name</label>
                       <input
                         type="text"
                         required
-                        value={joinCode}
-                        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                        maxLength={6}
-                        className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-bold tracking-widest"
-                        placeholder="ABCDEF"
+                        value={displayName}
+                        onChange={e => setDisplayName(e.target.value)}
+                        className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-current font-bold transition-all"
+                        placeholder="e.g. Alex"
                       />
-                    </motion.div>
-                  )}
-                </>
-              )}
+                    </div>
 
-              <div>
-                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Email</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-bold"
-                  placeholder="name@email.com"
-                />
-              </div>
+                    {role === 'parent' && (
+                      <div className="flex gap-3">
+                        {['create', 'join'].map(action => (
+                          <button
+                            key={action}
+                            type="button"
+                            onClick={() => setParentAction(action as 'create' | 'join')}
+                            className="flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all"
+                            style={
+                              parentAction === action
+                                ? { backgroundColor: NAVY, color: '#fff', borderColor: NAVY }
+                                : { backgroundColor: '#fff', color: '#94a3b8', borderColor: '#f1f5f9' }
+                            }
+                          >
+                            {action === 'create' ? 'Create Family' : 'Join Family'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
-              <div>
-                <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-1 ml-1">Password</label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all font-bold"
-                  placeholder="••••••••"
-                />
-              </div>
+                    {role === 'child' && (
+                      <div className="flex gap-3">
+                        {(['create', 'join'] as const).map(action => (
+                          <button
+                            key={action}
+                            type="button"
+                            onClick={() => setParentAction(action)}
+                            className="flex-1 py-3 rounded-xl border-2 font-bold text-sm transition-all"
+                            style={
+                              parentAction === action
+                                ? { backgroundColor: TEAL, color: '#fff', borderColor: TEAL }
+                                : { backgroundColor: '#fff', color: '#94a3b8', borderColor: '#f1f5f9' }
+                            }
+                          >
+                            {action === 'create' ? 'Start New Family' : 'Join Existing'}
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
-              {error && <p className="text-red-500 text-xs font-bold bg-red-50 p-3 rounded-xl border border-red-100">{error}</p>}
-
-              {resetSent && (
-                <p className="text-emerald-600 text-xs font-bold bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                  ✓ If an account exists for that email, a password reset link has been sent. Check your inbox.
-                </p>
-              )}
-
-              {isLogin && (
-                <div className="text-right -mt-1">
-                  <button
-                    type="button"
-                    onClick={handleForgotPassword}
-                    disabled={resetLoading}
-                    className="text-xs font-bold text-indigo-500 hover:text-indigo-700 transition-colors disabled:opacity-50"
-                  >
-                    {resetLoading ? 'Sending…' : 'Forgot password?'}
-                  </button>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading || (!isLogin && role === 'parent' && !parentAction)}
-                className={`w-full py-4 mt-4 text-white font-black rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg ${
-                  isLogin ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100'
-                } ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
-              >
-                {loading ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <span>{isLogin ? 'Sign In' : 'Sign Up Now'}</span>
-                    <ArrowRight size={20} />
+                    {parentAction === 'join' && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Invite Code</label>
+                        <input
+                          type="text"
+                          required
+                          value={joinCode}
+                          onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                          maxLength={6}
+                          className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none font-bold tracking-widest transition-all"
+                          placeholder="ABCDEF"
+                        />
+                      </motion.div>
+                    )}
                   </>
                 )}
-              </button>
 
-              {!isLogin && (
-                <button 
-                  type="button"
-                  onClick={() => setStep('role')}
-                  className="w-full text-center text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest"
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none font-bold transition-all"
+                    placeholder="name@email.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none font-bold transition-all"
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                {error && (
+                  <p className="text-red-500 text-xs font-bold bg-red-50 p-3 rounded-xl border border-red-100">
+                    {error}
+                  </p>
+                )}
+
+                {resetSent && (
+                  <p className="text-xs font-bold p-3 rounded-xl border" style={{ color: TEAL, backgroundColor: TEAL + '11', borderColor: TEAL + '33' }}>
+                    ✓ If an account exists for that email, a reset link has been sent. Check your inbox.
+                  </p>
+                )}
+
+                {isLogin && (
+                  <div className="text-right -mt-1">
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      disabled={resetLoading}
+                      className="text-xs font-bold transition-colors disabled:opacity-50"
+                      style={{ color: TEAL }}
+                    >
+                      {resetLoading ? 'Sending…' : 'Forgot password?'}
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || (!isLogin && role === 'parent' && !parentAction)}
+                  className="w-full py-4 mt-2 text-white font-black rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: isLogin ? NAVY : TEAL }}
                 >
-                  Change Role
+                  {loading ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <span>{isLogin ? 'Sign In' : 'Sign Up Now'}</span>
+                      <ArrowRight size={18} />
+                    </>
+                  )}
                 </button>
-              )}
-            </motion.form>
-          )}
-        </AnimatePresence>
-      </motion.div>
+
+                {!isLogin && (
+                  <button
+                    type="button"
+                    onClick={() => setStep('role')}
+                    className="w-full text-center text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest"
+                  >
+                    ← Change Role
+                  </button>
+                )}
+              </motion.form>
+            )}
+          </AnimatePresence>
+
+          {/* Bottom note */}
+          <p className="text-center text-[10px] text-slate-300 font-medium mt-8 uppercase tracking-widest">
+            Free · Secure · Built for families
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

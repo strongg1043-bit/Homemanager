@@ -33,6 +33,7 @@ type Transaction =
 export default function WalletLedger({ householdId, childId, childName, currency, totalPoints, isParent, onRequestPayment }: WalletLedgerProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [viewingProof, setViewingProof] = useState<string | null>(null);
 
   useEffect(() => {
@@ -56,23 +57,37 @@ export default function WalletLedger({ householdId, childId, childName, currency
     let tasks: Transaction[] = [];
     let redemptions: Transaction[] = [];
 
-    const unsubTasks = onSnapshot(tasksQuery, (snap) => {
-      tasks = snap.docs.map(doc => ({
-        type: 'task',
-        data: { id: doc.id, ...doc.data() } as Task,
-        date: (doc.data().approvedAt as Timestamp | null)?.toDate() ?? new Date(0)
-      }));
-      updateList();
-    });
+    const handleError = (err: Error) => {
+      console.error('WalletLedger snapshot error:', err);
+      setLoadError('Could not load transactions. Please refresh the page.');
+      setLoading(false);
+    };
 
-    const unsubRedemptions = onSnapshot(redemptionsQuery, (snap) => {
-      redemptions = snap.docs.map(doc => ({
-        type: 'redemption',
-        data: { id: doc.id, ...doc.data() } as Redemption,
-        date: (doc.data().createdAt as Timestamp | null)?.toDate() ?? new Date(0)
-      }));
-      updateList();
-    });
+    const unsubTasks = onSnapshot(
+      tasksQuery,
+      (snap) => {
+        tasks = snap.docs.map(doc => ({
+          type: 'task',
+          data: { id: doc.id, ...doc.data() } as Task,
+          date: (doc.data().approvedAt as Timestamp | null)?.toDate() ?? new Date(0)
+        }));
+        updateList();
+      },
+      handleError
+    );
+
+    const unsubRedemptions = onSnapshot(
+      redemptionsQuery,
+      (snap) => {
+        redemptions = snap.docs.map(doc => ({
+          type: 'redemption',
+          data: { id: doc.id, ...doc.data() } as Redemption,
+          date: (doc.data().createdAt as Timestamp | null)?.toDate() ?? new Date(0)
+        }));
+        updateList();
+      },
+      handleError
+    );
 
     function updateList() {
       const merged = [...tasks, ...redemptions].sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -132,6 +147,10 @@ export default function WalletLedger({ householdId, childId, childName, currency
         <div className="divide-y divide-slate-100">
           {loading ? (
             <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-slate-300" /></div>
+          ) : loadError ? (
+            <div className="p-8 text-center">
+              <p className="text-red-500 font-bold text-sm">{loadError}</p>
+            </div>
           ) : transactions.length === 0 ? (
             <div className="p-12 text-center">
               <p className="text-slate-400 font-medium italic">No transactions yet — start earning!</p>
@@ -247,6 +266,17 @@ export default function WalletLedger({ householdId, childId, childName, currency
                             className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-lg flex items-center gap-1 shadow-sm"
                           >
                             <Banknote size={14} /> Mark as Paid
+                          </button>
+                        )}
+
+                        {/* Non-cash rewards (e.g. screen time) have no payment method —
+                            just confirm it was delivered to close out the request. */}
+                        {isParent && redemption.status === 'approved' && !isCash && onRequestPayment && (
+                          <button
+                            onClick={() => onRequestPayment(redemption)}
+                            className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-lg flex items-center gap-1 shadow-sm"
+                          >
+                            <Gift size={14} /> Mark Fulfilled
                           </button>
                         )}
                       </div>

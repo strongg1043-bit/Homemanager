@@ -11,6 +11,11 @@
             box-sizing: border-box;
         }
 
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 90px;
+        }
+
         :root {
             --navy: #1B3A5C;
             --teal: #2E7D6B;
@@ -150,6 +155,7 @@
         .character-emoji {
             font-size: 4rem;
             display: block;
+            transition: opacity 0.4s ease, transform 0.4s ease;
         }
 
         .char-label {
@@ -157,6 +163,12 @@
             color: var(--text-dark);
             font-weight: 600;
             margin: 0;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .char-fade {
+            opacity: 0;
+            transform: translateY(6px);
         }
 
         .character-plus,
@@ -201,6 +213,102 @@
         .secondary-button:hover {
             background-color: var(--teal);
             color: var(--white);
+        }
+
+        /* How It Works Section */
+        .how-it-works {
+            padding: 4rem 2rem;
+            background-color: var(--white);
+        }
+
+        .how-it-works-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .how-it-works-subtitle {
+            color: var(--text-light);
+            font-size: 1.1rem;
+            margin-top: -1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .flow-diagram {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .flow-step {
+            background-color: var(--linen);
+            border: 2px solid var(--indigo-200, #C3D1E6);
+            border-radius: 16px;
+            padding: 1.75rem 1.25rem;
+            width: 220px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .flow-step:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 24px rgba(27, 58, 92, 0.12);
+            border-color: var(--teal);
+        }
+
+        .flow-icon-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 72px;
+            height: 72px;
+            background-color: var(--white);
+            border-radius: 50%;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+
+        .flow-icon {
+            font-size: 2.2rem;
+        }
+
+        .flow-number {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background-color: var(--navy);
+            color: var(--white);
+            font-size: 0.8rem;
+            font-weight: 700;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .flow-step h3 {
+            color: var(--navy);
+            font-size: 1.15rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .flow-step p {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .flow-arrow {
+            color: var(--amber);
+            font-size: 1.75rem;
+            font-weight: 700;
+            align-self: center;
+            margin-top: 36px;
         }
 
         /* Features Section */
@@ -439,6 +547,21 @@
                 font-size: 1.75rem;
             }
 
+            .flow-diagram {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .flow-step {
+                width: 100%;
+                max-width: 320px;
+            }
+
+            .flow-arrow {
+                transform: rotate(90deg);
+                margin: -0.5rem 0;
+            }
+
             .nav-links {
                 gap: 1rem;
                 font-size: 0.9rem;
@@ -460,6 +583,7 @@
     <nav>
         <a href="/" class="logo">🏠 Home Anchor</a>
         <ul class="nav-links">
+            <li><a href="#how-it-works">How It Works</a></li>
             <li><a href="#features">Features</a></li>
             <li><a href="#benefits">Benefits</a></li>
             <li><button class="cta-button" onclick="location.href='https://app.home-anchor.org'">Launch App</button></li>
@@ -474,23 +598,68 @@
                 <p>Home Anchor makes household chores fun, teaches responsibility, and brings families together—all in one app.</p>
                 <div class="hero-buttons">
                     <button class="cta-button" onclick="location.href='https://app.home-anchor.org'">Get Started Free</button>
-                    <button class="secondary-button">See How It Works</button>
+                    <button class="secondary-button" onclick="document.getElementById('how-it-works').scrollIntoView({behavior: 'smooth'})">See How It Works</button>
                 </div>
             </div>
             <div class="hero-characters">
                 <div class="character parent-char">
-                    <span class="character-emoji">👩</span>
-                    <p class="char-label">Mom</p>
+                    <span class="character-emoji" id="char-1-emoji">👩</span>
+                    <p class="char-label" id="char-1-label">Mom</p>
                 </div>
                 <div class="character-plus">+</div>
                 <div class="character kid-char">
-                    <span class="character-emoji">👧</span>
-                    <p class="char-label">Sofia</p>
+                    <span class="character-emoji" id="char-2-emoji">👧</span>
+                    <p class="char-label" id="char-2-label">Sofia</p>
                 </div>
                 <div class="character-equal">=</div>
                 <div class="character success-char">
-                    <span class="character-emoji">🏠</span>
-                    <p class="char-label">Happy Home</p>
+                    <span class="character-emoji" id="char-3-emoji">🏠</span>
+                    <p class="char-label" id="char-3-label">Happy Home</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="how-it-works-container">
+            <h2 class="section-title">How Home Anchor Works</h2>
+            <p class="how-it-works-subtitle">From sign-up to reward, in four simple steps.</p>
+            <div class="flow-diagram">
+                <div class="flow-step">
+                    <div class="flow-icon-wrap">
+                        <span class="flow-icon">📝</span>
+                        <span class="flow-number">1</span>
+                    </div>
+                    <h3>Register</h3>
+                    <p>Create your family account and invite parents & kids to join the household.</p>
+                </div>
+                <div class="flow-arrow">➜</div>
+                <div class="flow-step">
+                    <div class="flow-icon-wrap">
+                        <span class="flow-icon">📋</span>
+                        <span class="flow-number">2</span>
+                    </div>
+                    <h3>Allocate Task</h3>
+                    <p>Parents assign chores to kids, setting clear points and deadlines.</p>
+                </div>
+                <div class="flow-arrow">➜</div>
+                <div class="flow-step">
+                    <div class="flow-icon-wrap">
+                        <span class="flow-icon">✅</span>
+                        <span class="flow-number">3</span>
+                    </div>
+                    <h3>Child Completes Task</h3>
+                    <p>Kids get it done and mark it complete, with photo proof if needed.</p>
+                </div>
+                <div class="flow-arrow">➜</div>
+                <div class="flow-step">
+                    <div class="flow-icon-wrap">
+                        <span class="flow-icon">🎉</span>
+                        <span class="flow-number">4</span>
+                    </div>
+                    <h3>Rewarded</h3>
+                    <p>Parents approve, and points convert to real rewards kids can redeem.</p>
                 </div>
             </div>
         </div>
@@ -608,5 +777,39 @@
     <footer>
         <p>&copy; 2026 Home Anchor. Helping families thrive together.</p>
     </footer>
+
+    <script>
+        const heroCombos = [
+            { emoji1: '👩', label1: 'Mom',      emoji2: '👧', label2: 'Sofia',    emoji3: '🏠', label3: 'Happy Home' },
+            { emoji1: '👨', label1: 'Dad',      emoji2: '👦', label2: 'Kyle',     emoji3: '🏠', label3: 'Happy Home' },
+            { emoji1: '👫', label1: 'Parents',  emoji2: '🧒', label2: 'Children', emoji3: '👪', label3: 'Happy Family' },
+        ];
+
+        let heroComboIndex = 0;
+
+        function rotateHeroCombo() {
+            heroComboIndex = (heroComboIndex + 1) % heroCombos.length;
+            const combo = heroCombos[heroComboIndex];
+
+            const fields = [
+                ['char-1-emoji', combo.emoji1], ['char-1-label', combo.label1],
+                ['char-2-emoji', combo.emoji2], ['char-2-label', combo.label2],
+                ['char-3-emoji', combo.emoji3], ['char-3-label', combo.label3],
+            ];
+
+            fields.forEach(([id]) => document.getElementById(id).classList.add('char-fade'));
+
+            setTimeout(() => {
+                fields.forEach(([id, value]) => {
+                    const el = document.getElementById(id);
+                    el.textContent = value;
+                    el.classList.remove('char-fade');
+                });
+                setTimeout(rotateHeroCombo, 2600);
+            }, 400);
+        }
+
+        setTimeout(rotateHeroCombo, 3000);
+    </script>
 </body>
 </html>

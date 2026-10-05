@@ -96,8 +96,8 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-[120] p-4">
-          <motion.div 
+        <div className="fixed inset-0 flex items-end sm:items-center justify-center z-[120] sm:p-4">
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -108,7 +108,7 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="relative w-full max-w-md bg-white rounded-[2rem] shadow-2xl overflow-hidden"
+            className="relative w-full sm:max-w-md bg-white rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[90vh] flex flex-col"
           >
             <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-red-600">
               <div className="flex items-center gap-3">

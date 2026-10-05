@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Navy background with iOS-style corner radius -->
+  <rect width="512" height="512" rx="112" fill="#1B3A5C"/>
+
+  <!-- Ring / shackle — amber accent -->
+  <circle cx="256" cy="132" r="44" fill="none" stroke="#F5A35A" stroke-width="28"/>
+
+  <!-- Stock (horizontal crossbar) — white -->
+  <line x1="148" y1="198" x2="364" y2="198" stroke="white" stroke-width="30" stroke-linecap="round"/>
+
+  <!-- Shaft (vertical) — white -->
+  <line x1="256" y1="176" x2="256" y2="390" stroke="white" stroke-width="30" stroke-linecap="round"/>
+
+  <!-- Left fluke -->
+  <path d="M256,390 C234,390 200,386 176,364 C156,346 156,318 172,306"
+        fill="none" stroke="white" stroke-width="30" stroke-linecap="round"/>
+
+  <!-- Right fluke -->
+  <path d="M256,390 C278,390 312,386 336,364 C356,346 356,318 340,306"
+        fill="none" stroke="white" stroke-width="30" stroke-linecap="round"/>
+</svg>

@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
-import { doc, collection, serverTimestamp, increment, writeBatch } from 'firebase/firestore';
+import { doc, collection, serverTimestamp, increment, runTransaction } from 'firebase/firestore';
 import { Household, UserProfile, RewardItem } from '../types';
 import { createNotification } from '../lib/notifications';
 import { sendCashoutRequestEmail } from '../lib/email';
 import { motion, AnimatePresence } from 'motion/react';
 import { Gift, Banknote, CheckCircle2, XCircle, Info, Loader2, ArrowRight } from 'lucide-react';
+import BetaFundingModal from './BetaFundingModal';
+import { shouldShowFundingModal, recordFundingModalShown } from '../lib/fundingModal';
 
 interface RedeemRewardsProps {
   household: Household;
@@ -19,44 +21,54 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
   const [confirmingCash, setConfirmingCash] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
+  const [showFunding, setShowFunding] = useState(false);
 
   const handleRedeem = async (reward: RewardItem) => {
-    if (profile.totalPoints < reward.pointCost) return;
     setIsProcessing(true);
     setError('');
     try {
+      const userRef = doc(db, 'users', profile.uid);
       const redemptionRef = doc(collection(db, 'households', household.id, 'redemptions'));
-      // Atomic batch: redemption doc + point deduction land together or not at all.
-      const batch = writeBatch(db);
-      batch.set(redemptionRef, {
-        id: redemptionRef.id,
-        householdId: household.id,
-        type: 'reward',
-        title: reward.title,
-        pointsSpent: reward.pointCost,
-        cashValue: reward.pointCost,
-        childId: profile.uid,
-        childName: profile.displayName,
-        status: 'pending',
-        proofPhotoUrl: null,
-        note: null,
-        paidBy: null,
-        paidByName: null,
-        paymentMethod: null,
-        paymentReference: null,
-        paymentNote: null,
-        createdAt: serverTimestamp(),
-        approvedAt: null,
-        paidAt: null,
+
+      // Transaction ensures we read the live balance before deducting —
+      // prevents double-spend if the user taps twice or a concurrent cashout races this.
+      await runTransaction(db, async (tx) => {
+        const userSnap = await tx.get(userRef);
+        const livePoints: number = userSnap.data()?.totalPoints ?? 0;
+        if (livePoints < reward.pointCost) throw new Error('Insufficient balance');
+
+        tx.set(redemptionRef, {
+          id: redemptionRef.id,
+          householdId: household.id,
+          type: 'reward',
+          title: reward.title,
+          pointsSpent: reward.pointCost,
+          cashValue: reward.pointCost,
+          childId: profile.uid,
+          childName: profile.displayName,
+          status: 'pending',
+          proofPhotoUrl: null,
+          note: null,
+          paidBy: null,
+          paidByName: null,
+          paymentMethod: null,
+          paymentReference: null,
+          paymentNote: null,
+          createdAt: serverTimestamp(),
+          approvedAt: null,
+          paidAt: null,
+        });
+        tx.update(userRef, { totalPoints: increment(-reward.pointCost) });
       });
-      batch.update(doc(db, 'users', profile.uid), {
-        totalPoints: increment(-reward.pointCost)
-      });
-      await batch.commit();
 
       setConfirmingReward(null);
+      if (shouldShowFundingModal()) {
+        recordFundingModalShown();
+        setShowFunding(true);
+      }
     } catch (err: unknown) {
-      setError('Redemption failed: ' + (err instanceof Error ? err.message : String(err)));
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg === 'Insufficient balance' ? 'Not enough points for this reward.' : 'Redemption failed. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -68,40 +80,51 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
     setIsProcessing(true);
     setError('');
     try {
+      const userRef = doc(db, 'users', profile.uid);
       const redemptionRef = doc(collection(db, 'households', household.id, 'redemptions'));
-      // Atomic batch: redemption doc + point deduction land together or not at all.
-      const batch = writeBatch(db);
-      batch.set(redemptionRef, {
-        id: redemptionRef.id,
-        householdId: household.id,
-        type: 'cash',
-        title: 'Cash Out',
-        pointsSpent: cashAmount,
-        cashValue: cashAmount,
-        childId: profile.uid,
-        childName: profile.displayName,
-        status: 'pending',
-        proofPhotoUrl: null,
-        note: null,
-        paidBy: null,
-        paidByName: null,
-        paymentMethod: null,
-        paymentReference: null,
-        paymentNote: null,
-        createdAt: serverTimestamp(),
-        approvedAt: null,
-        paidAt: null,
+
+      // Use a transaction so the balance read and write are atomic —
+      // prevents double-deduction if parent settles at the same moment.
+      await runTransaction(db, async (tx) => {
+        const userSnap = await tx.get(userRef);
+        const livePoints: number = userSnap.data()?.totalPoints ?? 0;
+        // Cap at actual live balance to guarantee we never go negative
+        const safeAmount = Math.min(cashAmount, Math.max(0, livePoints));
+        if (safeAmount < minCashOut) throw new Error('Insufficient balance');
+        tx.set(redemptionRef, {
+          id: redemptionRef.id,
+          householdId: household.id,
+          type: 'cash',
+          title: 'Cash Out',
+          pointsSpent: safeAmount,
+          cashValue: safeAmount,
+          childId: profile.uid,
+          childName: profile.displayName,
+          status: 'pending',
+          proofPhotoUrl: null,
+          note: null,
+          paidBy: null,
+          paidByName: null,
+          paymentMethod: null,
+          paymentReference: null,
+          paymentNote: null,
+          createdAt: serverTimestamp(),
+          approvedAt: null,
+          paidAt: null,
+        });
+        tx.update(userRef, { totalPoints: increment(-safeAmount) });
       });
-      batch.update(doc(db, 'users', profile.uid), {
-        totalPoints: increment(-cashAmount)
-      });
-      await batch.commit();
 
       setConfirmingCash(false);
       setCashAmount(minCashOut);
-      
+      if (shouldShowFundingModal()) {
+        recordFundingModalShown();
+        setShowFunding(true);
+      }
+
       // Notify parents
       const parents = members.filter(m => m.role === 'parent');
+      const emailEnabled = household.emailNotificationsEnabled !== false;
       for (const parent of parents) {
         await createNotification(
           household.id, parent.uid, 'parent',
@@ -110,7 +133,7 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
           `${profile.displayName} wants to cash out ${household.currency}${cashAmount}. Tap to pay!`,
           '💸', { redemptionId: redemptionRef.id }
         );
-        if (parent.email) {
+        if (emailEnabled && parent.email) {
           sendCashoutRequestEmail(parent.email, parent.displayName || 'Parent', profile.displayName || 'Child', cashAmount, household.currency);
         }
       }
@@ -124,15 +147,21 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
   return (
     <div className="space-y-12">
       {/* Points Summary Header */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 flex items-center justify-between shadow-sm">
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="p-3 bg-emerald-100 text-emerald-600 rounded-2xl">
             <Gift size={24} />
           </div>
           <div>
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest">Available Balance</h2>
-            <div className="text-2xl font-black text-slate-900">{profile.totalPoints} pts = {household.currency}{profile.totalPoints}</div>
+            <div className="text-2xl font-black text-slate-900">{Math.max(0, profile.totalPoints ?? 0)} pts = {household.currency}{Math.max(0, profile.totalPoints ?? 0)}</div>
           </div>
+        </div>
+        <div className="mt-4 flex items-start gap-2 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3">
+          <CheckCircle2 size={14} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+          <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest leading-relaxed">
+            Balance reflects only parent-approved completed tasks. Cash-outs and rewards are limited to your earned balance.
+          </p>
         </div>
       </div>
 
@@ -342,6 +371,13 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
           </div>
         )}
       </AnimatePresence>
+
+      <BetaFundingModal
+        isOpen={showFunding}
+        onClose={() => setShowFunding(false)}
+        variant="child"
+        childName={profile.displayName}
+      />
     </div>
   );
 }

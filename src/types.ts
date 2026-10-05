@@ -3,7 +3,7 @@ import { Timestamp } from 'firebase/firestore';
 export type Role = 'parent' | 'child';
 export type TaskType = 'daily' | 'weekly' | 'monthly' | 'adhoc_date' | 'adhoc_kpi';
 export type EvidenceType = 'photo' | 'document' | 'grade' | 'any';
-export type TaskStatus = 'pending' | 'accepted' | 'submitted' | 'approved' | 'needs_retry' | 'missed' | 'forfeited';
+export type TaskStatus = 'pending' | 'accepted' | 'submitted' | 'approved' | 'needs_retry' | 'missed' | 'forfeited' | 'proposed';
 
 export interface UserProfile {
   uid: string;
@@ -17,6 +17,8 @@ export interface UserProfile {
   trustScore: number;
   badges: string[];
   email?: string;
+  showOnboarding?: boolean;       // parent: show wizard on first login
+  showChildOnboarding?: boolean;  // child: show welcome screen on first login
 }
 
 export interface RewardItem {
@@ -35,11 +37,14 @@ export interface Household {
   currencyName: string;
   cashOutEnabled: boolean;
   minCashOut: number;
+  emailNotificationsEnabled?: boolean;
   createdAt: Timestamp;
   inviteCode: string;
   familyColour: string;
   familyLogo: string | null;
   familyMotto: string | null;
+  timezone?: string;
+  onboardingTaskPoints?: number;
 }
 
 export interface Task {
@@ -61,9 +66,11 @@ export interface Task {
   
   // Recurrence
   recurrence?: {
-    weekday?: string;
-    dayOfMonth?: number;
+    weekday?: string | null;
+    dayOfMonth?: number | null;
     lastReset?: Timestamp;
+    endDate?: Timestamp | null;
+    expired?: boolean;
   };
   
   dueDate: Timestamp | null;
@@ -72,11 +79,21 @@ export interface Task {
   proofPhotoUrl: string | null;
   
   // Agreement tracking
-  proposedBy: 'parent' | 'child';
+  proposedBy: 'parent' | 'child' | null;
   rewardLocked: boolean;
   rewardLockedAt?: Timestamp;
   childAcceptedAt?: Timestamp;
   
+  // Retry feedback
+  retryNote?: string | null;
+
+  // Missed tracking (for recurring tasks)
+  missedCount?: number;
+  lastMissedAt?: Timestamp | null;
+
+  // Onboarding task (auto-created when child joins household)
+  isOnboardingTask?: boolean;
+
   completedAt: Timestamp | null;
   approvedAt: Timestamp | null;
   createdAt: Timestamp;

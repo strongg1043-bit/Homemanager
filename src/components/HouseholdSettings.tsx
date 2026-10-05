@@ -2,16 +2,12 @@ import React, { useState } from 'react';
 import { db } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { Household } from '../types';
-import { 
-  Settings, 
-  Coins, 
-  DollarSign, 
-  Euro, 
-  PoundSterling, 
-  Banknote, 
-  Info, 
-  Save, 
-  Loader2 
+import {
+  Coins,
+  Banknote,
+  Info,
+  Save,
+  Loader2,
 } from 'lucide-react';
 
 interface HouseholdSettingsProps {
@@ -41,7 +37,7 @@ export default function HouseholdSettings({ household }: HouseholdSettingsProps)
         currency: currency.trim(),
         currencyName: currencyName.trim(),
         cashOutEnabled,
-        minCashOut: Number(minCashOut)
+        minCashOut: Number(minCashOut),
       });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);

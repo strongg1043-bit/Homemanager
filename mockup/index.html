@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Daily Quote – Mock-up</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+body{background:#f1f5f9;min-height:100vh}
+
+/* toggle bar */
+.toggle-bar{position:fixed;top:0;left:0;right:0;z-index:99;background:#0f172a;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px}
+.toggle-label{color:rgba(255,255,255,.4);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+.toggle-btn{padding:6px 18px;border-radius:999px;border:none;cursor:pointer;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;transition:.2s}
+.toggle-btn.active{background:#fff;color:#0f172a}
+.toggle-btn:not(.active){background:transparent;color:rgba(255,255,255,.4)}
+
+.page{max-width:720px;margin:0 auto;padding:64px 24px 40px}
+.hidden{display:none!important}
+
+/* header */
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+.family-icon{width:44px;height:44px;border-radius:14px;background:#4f46e5;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:18px;flex-shrink:0}
+.family-info{margin-left:12px}
+.family-name{font-weight:900;color:#0f172a;font-size:17px;line-height:1}
+.family-motto{color:#94a3b8;font-size:11px;font-style:italic;margin-top:3px}
+.pts-badge{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:16px;padding:8px 16px;font-weight:900;font-size:13px;color:#334155;display:flex;align-items:center;gap:6px}
+
+/* tabs */
+.tabs{display:flex;background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:4px;margin-bottom:28px}
+.tab{flex:1;text-align:center;padding:8px 4px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border-radius:12px;color:#94a3b8;cursor:pointer}
+.tab.active{background:#4f46e5;color:#fff}
+
+/* ── BEFORE: plain empty state ── */
+.empty-boring{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 24px;text-align:center}
+.empty-boring .icon{width:64px;height:64px;background:#f1f5f9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:16px;color:#cbd5e1}
+.empty-boring h3{color:#94a3b8;font-weight:900;font-size:17px;margin-bottom:6px}
+.empty-boring p{color:#cbd5e1;font-size:13px;font-weight:500;max-width:260px}
+
+/* ── AFTER: daily quote card ── */
+.quote-card{position:relative;border-radius:28px;overflow:hidden;margin-bottom:24px;box-shadow:0 20px 40px rgba(79,70,229,.18)}
+.quote-bg{background:linear-gradient(135deg,#1B3A5C 0%,#2E7D6B 100%);padding:32px}
+.blob1{position:absolute;top:-40px;right:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,.07);pointer-events:none}
+.blob2{position:absolute;bottom:-30px;left:-30px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,.05);pointer-events:none}
+.blob3{position:absolute;top:50%;right:80px;width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.04);pointer-events:none}
+
+.quote-label-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;position:relative;z-index:2}
+.quote-badge{display:flex;align-items:center;gap:8px}
+.quote-anchor{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:13px}
+.quote-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.6)}
+.quote-date{font-size:10px;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.08em}
+
+.big-quote{font-size:72px;font-weight:900;line-height:.65;color:rgba(245,163,90,.55);font-family:Georgia,serif;position:relative;z-index:2;margin-bottom:8px}
+.quote-text{color:#fff;font-size:17px;font-weight:700;line-height:1.65;position:relative;z-index:2;margin-bottom:20px}
+.quote-foot{display:flex;align-items:flex-end;justify-content:space-between;position:relative;z-index:2}
+.quote-attr{color:rgba(255,255,255,.45);font-size:11px;font-weight:600;font-style:italic}
+.close-quote{font-size:36px;font-weight:900;color:rgba(245,163,90,.35);font-family:Georgia,serif;line-height:1}
+
+/* quick actions */
+.actions-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
+.action-card{background:#fff;border:1px solid #e2e8f0;border-radius:20px;padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.15s}
+.action-card:hover{border-color:#a5b4fc;box-shadow:0 4px 12px rgba(99,102,241,.08)}
+.action-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.action-icon.indigo{background:#eef2ff}
+.action-icon.green{background:#f0fdf4}
+.action-title{font-weight:900;color:#0f172a;font-size:13px;margin-bottom:2px}
+.action-sub{font-size:11px;color:#94a3b8;font-weight:500}
+
+/* empty sections */
+.empty-sections{display:flex;flex-direction:column;gap:12px}
+.empty-section{background:#fff;border:2px dashed #e2e8f0;border-radius:24px;padding:28px;text-align:center}
+.empty-section .e-icon{font-size:24px;margin-bottom:8px;opacity:.4}
+.empty-section h4{font-weight:900;color:#94a3b8;font-size:13px;margin-bottom:4px}
+.empty-section p{font-size:11px;color:#cbd5e1;font-weight:500;max-width:240px;margin:0 auto}
+
+/* label pill */
+.label-pill{display:inline-block;background:#eef2ff;color:#4f46e5;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;padding:3px 10px;border-radius:999px;margin-bottom:16px}
+</style>
+</head>
+<body>
+
+<!-- toggle bar -->
+<div class="toggle-bar">
+  <span class="toggle-label">View:</span>
+  <button class="toggle-btn" id="btn-before" onclick="show('before')">Before (current)</button>
+  <button class="toggle-btn active" id="btn-after" onclick="show('after')">After (with Daily Quote)</button>
+</div>
+
+<!-- BEFORE -->
+<div id="view-before" class="hidden">
+  <div class="page">
+    <div class="header">
+      <div style="display:flex;align-items:center">
+        <div class="family-icon">E</div>
+        <div class="family-info">
+          <div class="family-name">Erasmus Family</div>
+          <div class="family-motto">"Teamwork makes the dream work!"</div>
+        </div>
+      </div>
+      <div class="pts-badge">🏆 240 pts</div>
+    </div>
+    <div class="tabs">
+      <div class="tab active">Review</div>
+      <div class="tab">Family</div>
+      <div class="tab">Library</div>
+      <div class="tab">Report</div>
+      <div class="tab">Settings</div>
+    </div>
+    <div class="empty-boring">
+      <div class="icon">📋</div>
+      <h3>Nothing to review</h3>
+      <p>Tasks submitted by your children will appear here.</p>
+    </div>
+  </div>
+</div>
+
+<!-- AFTER -->
+<div id="view-after">
+  <div class="page">
+    <div class="header">
+      <div style="display:flex;align-items:center">
+        <div class="family-icon">E</div>
+        <div class="family-info">
+          <div class="family-name">Erasmus Family</div>
+          <div class="family-motto">"Teamwork makes the dream work!"</div>
+        </div>
+      </div>
+      <div class="pts-badge">🏆 240 pts</div>
+    </div>
+    <div class="tabs">
+      <div class="tab active">Review</div>
+      <div class="tab">Family</div>
+      <div class="tab">Library</div>
+      <div class="tab">Report</div>
+      <div class="tab">Settings</div>
+    </div>
+
+    <!-- DAILY QUOTE CARD -->
+    <div class="quote-card">
+      <div class="blob1"></div>
+      <div class="blob2"></div>
+      <div class="blob3"></div>
+      <div class="quote-bg">
+        <div class="quote-label-row">
+          <div class="quote-badge">
+            <div class="quote-anchor">⚓</div>
+            <span class="quote-label">Daily Family Inspiration</span>
+          </div>
+          <span class="quote-date">30 May 2026</span>
+        </div>
+        <div class="big-quote">"</div>
+        <p class="quote-text">
+          The greatest gift you can give your children isn't things — it's the habit of earning them. Every task completed, every reward claimed, builds the character that outlasts childhood.
+        </p>
+        <div class="quote-foot">
+          <span class="quote-attr">— Home Anchor · Daily AI Inspiration</span>
+          <span class="close-quote">"</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUICK ACTIONS -->
+    <div class="label-pill">Quick Actions</div>
+    <div class="actions-grid">
+      <div class="action-card">
+        <div class="action-icon indigo">➕</div>
+        <div>
+          <div class="action-title">Deploy a Task</div>
+          <div class="action-sub">Assign something new</div>
+        </div>
+      </div>
+      <div class="action-card">
+        <div class="action-icon green">👨‍👩‍👧</div>
+        <div>
+          <div class="action-title">Invite a Child</div>
+          <div class="action-sub">Share your family code</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMPTY SECTIONS -->
+    <div class="empty-sections">
+      <div class="empty-section">
+        <div class="e-icon">✅</div>
+        <h4>No submissions to review</h4>
+        <p>Completed tasks from your children appear here for approval</p>
+      </div>
+      <div class="empty-section">
+        <div class="e-icon">💡</div>
+        <h4>No task proposals</h4>
+        <p>When a child suggests a task it shows up here for your approval</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function show(v){
+  document.getElementById('view-before').classList.toggle('hidden', v!=='before');
+  document.getElementById('view-after').classList.toggle('hidden', v!=='after');
+  document.getElementById('btn-before').classList.toggle('active', v==='before');
+  document.getElementById('btn-after').classList.toggle('active', v==='after');
+}
+</script>
+</body>
+</html>
