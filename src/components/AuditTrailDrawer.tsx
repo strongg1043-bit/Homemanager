@@ -3,10 +3,10 @@ import { db } from '../firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { Task, Redemption, Notification, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, Clock, CheckCircle, Camera, Banknote, 
+import {
+  X, Clock, CheckCircle, Camera, Banknote,
   AlertTriangle, History, ArrowRight, User,
-  Calendar, Shield
+  Calendar, Shield, PlusCircle
 } from 'lucide-react';
 
 interface Props {

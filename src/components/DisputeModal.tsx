@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Task, Redemption, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -58,7 +58,7 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
       const householdId = task?.householdId || redemption?.householdId;
       if (!householdId) return;
 
-      const disputeRef = await addDoc(collection(db, 'households', householdId, 'disputes'), {
+      await addDoc(collection(db, 'households', householdId, 'disputes'), {
         householdId,
         taskId: task?.id || null,
         redemptionId: redemption?.id || null,
@@ -70,8 +70,6 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
         status: 'open',
         createdAt: serverTimestamp(),
       });
-
-      await updateDoc(disputeRef, { id: disputeRef.id });
 
       // Notify parents about the dispute
       const parents = members.filter(m => m.role === 'parent');
