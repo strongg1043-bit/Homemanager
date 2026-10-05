@@ -1306,7 +1306,7 @@ export default function ParentDashboard({ profile }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-4"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -1562,7 +1562,7 @@ export default function ParentDashboard({ profile }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-end sm:items-center justify-center sm:p-4"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center sm:p-4"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -1698,7 +1698,7 @@ export default function ParentDashboard({ profile }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-end sm:items-center justify-center sm:p-4"
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center sm:p-4"
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }}

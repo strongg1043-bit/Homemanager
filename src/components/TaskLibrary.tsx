@@ -497,7 +497,7 @@ export default function TaskLibrary({ householdId, members, profile, currency }:
       {/* ── Quick Assign Modal ─────────────────────────────────────────────── */}
       <AnimatePresence>
         {assignTemplate && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -633,7 +633,7 @@ export default function TaskLibrary({ householdId, members, profile, currency }:
       {/* ── Add / Edit Template Modal ──────────────────────────────────────── */}
       <AnimatePresence>
         {(showAddModal || editTemplate) && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-end sm:items-center justify-center sm:p-4">
             <motion.div
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -770,7 +770,7 @@ export default function TaskLibrary({ householdId, members, profile, currency }:
       {/* ── Delete Confirm Modal ───────────────────────────────────────────── */}
       <AnimatePresence>
         {deleteConfirm && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
