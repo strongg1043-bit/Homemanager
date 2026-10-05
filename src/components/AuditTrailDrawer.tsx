@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Clock, CheckCircle, Camera, Banknote,
   AlertTriangle, History, ArrowRight, User,
-  Calendar, Shield, PlusCircle
+  Calendar, Shield
 } from 'lucide-react';
 
 interface Props {
