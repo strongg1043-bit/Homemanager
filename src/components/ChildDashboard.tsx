@@ -671,15 +671,17 @@ export default function ChildDashboard({ profile }: Props) {
         </AnimatePresence>
       </main>
 
-      {/* Floating Action Button */}
-      <motion.button 
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setShowRequestModal(true)}
-        className="fixed right-6 bottom-32 w-16 h-16 bg-indigo-600 text-white rounded-3xl shadow-2xl flex items-center justify-center z-40 hover:bg-slate-900 transition-colors"
-      >
-        <Plus size={32} />
-      </motion.button>
+      {/* Floating Action Button — only on Home; on other tabs it overlaps scrolling content */}
+      {activeTab === 'home' && (
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShowRequestModal(true)}
+          className="fixed right-6 bottom-32 w-16 h-16 bg-indigo-600 text-white rounded-3xl shadow-2xl flex items-center justify-center z-40 hover:bg-slate-900 transition-colors"
+        >
+          <Plus size={32} />
+        </motion.button>
+      )}
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-6 py-4 flex items-center justify-around z-50">
