@@ -108,7 +108,7 @@ export default function HouseholdSettings({ household }: HouseholdSettingsProps)
         </div>
 
         <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 flex items-center gap-3">
-          <div className="p-2 bg-white text-indigo-600 rounded-lg shadow-sm border border-indigo-100 font-black">
+          <div className="p-2 bg-white text-indigo-600 rounded-lg shadow-sm border border-indigo-100 font-black whitespace-nowrap flex-shrink-0">
             1 pt = {currency}1
           </div>
           <p className="text-xs text-indigo-700 font-medium italic">
