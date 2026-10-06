@@ -7,6 +7,7 @@ import ChildTaskCard from './ChildTaskCard';
 import RedeemRewards from './RedeemRewards';
 import WalletLedger from './WalletLedger';
 import SuggestFeature from './SuggestFeature';
+import PushNotificationCard from './PushNotificationCard';
 import HouseholdSetup from './HouseholdSetup';
 import ChildWelcomeScreen from './ChildWelcomeScreen';
 import NotificationBell from './NotificationBell';
@@ -641,6 +642,8 @@ export default function ChildDashboard({ profile }: Props) {
                 <h3 className="mt-6 text-2xl font-black text-slate-900">{profile.displayName}</h3>
                 <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Supercharged Child</p>
               </div>
+
+              <PushNotificationCard uid={profile.uid} />
 
               <SuggestFeature
                 userId={profile.uid}

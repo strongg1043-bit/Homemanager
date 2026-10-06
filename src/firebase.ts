@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, setPersistence, inMemoryPersistence } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator, terminate } from 'firebase/firestore';
+import { getFunctions } from 'firebase/functions';
 
 // All Firebase config values must be set in .env.local (see .env.example).
 // NEVER hardcode real credentials here.
@@ -16,6 +17,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const functions = getFunctions(app);
 
 if (import.meta.env.VITE_USE_EMULATORS === 'true') {
   connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });

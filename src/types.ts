@@ -19,6 +19,7 @@ export interface UserProfile {
   email?: string;
   showOnboarding?: boolean;       // parent: show wizard on first login
   showChildOnboarding?: boolean;  // child: show welcome screen on first login
+  fcmTokens?: string[];           // registered push notification device tokens
 }
 
 export interface RewardItem {
@@ -97,6 +98,10 @@ export interface Task {
   completedAt: Timestamp | null;
   approvedAt: Timestamp | null;
   createdAt: Timestamp;
+
+  // Push notification nudges (written only by the server-side scheduled function)
+  lastDueSoonNudgeAt?: Timestamp | null;
+  lastStaleNudgeAt?: Timestamp | null;
 }
 
 export type RedemptionType = 'reward' | 'cash';
@@ -128,7 +133,8 @@ export interface Redemption {
 }
 
 export type NotificationType = 'task_submitted' | 'task_approved' | 'task_needs_retry' | 'task_assigned' |
-  'cashout_requested' | 'cashout_paid' | 'reward_redeemed' | 'task_due_soon' | 'welcome' | 'payment_reminder' | 'dispute_raised';
+  'cashout_requested' | 'cashout_paid' | 'reward_redeemed' | 'task_due_soon' | 'welcome' | 'payment_reminder' | 'dispute_raised' |
+  'task_stale' | 'parent_nudge';
 
 export interface Dispute {
   id: string;

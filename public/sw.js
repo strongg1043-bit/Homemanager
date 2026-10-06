@@ -1,5 +1,45 @@
 const CACHE = 'home-anchor-v1';
 
+// ── Firebase Cloud Messaging (background push) ──────────────────────────────
+// Config values below are the public Firebase web app config (safe to embed —
+// they're already visible in the deployed client bundle, not secrets).
+importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js');
+
+firebase.initializeApp({
+  apiKey: 'AIzaSyAtVpAu_3NErApc0_Wf9JqJdmluypxMV5I',
+  authDomain: 'homemanager-c409a.firebaseapp.com',
+  projectId: 'homemanager-c409a',
+  storageBucket: 'homemanager-c409a.firebasestorage.app',
+  messagingSenderId: '1052149864469',
+  appId: '1:1052149864469:web:71f7a94186512ae3a7d61c',
+});
+
+const messaging = firebase.messaging();
+
+messaging.onBackgroundMessage((payload) => {
+  const { title, body } = payload.notification || {};
+  if (!title) return;
+  self.registration.showNotification(title, {
+    body,
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    data: payload.data || {},
+  });
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((clients) => {
+      for (const client of clients) {
+        if ('focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow('/');
+    })
+  );
+});
+
 const SKIP_HOSTS = [
   'firestore.googleapis.com',
   'firebase.googleapis.com',

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { db, auth } from '../firebase';
+import { db, auth, functions } from '../firebase';
+import { httpsCallable } from 'firebase/functions';
 import { doc, collection, query, where, onSnapshot, updateDoc, arrayUnion, arrayRemove, orderBy, serverTimestamp, increment, writeBatch, deleteDoc, runTransaction, Timestamp, getDoc, setDoc } from 'firebase/firestore';
 import { UserProfile, Household, Task, Redemption, Dispute, EvidenceType } from '../types';
 import ParentTaskCard from './ParentTaskCard';
@@ -20,6 +21,7 @@ import WalletLedger from './WalletLedger';
 import TaskLibrary from './TaskLibrary';
 import OnboardingWizard from './OnboardingWizard';
 import DailyQuoteCard from './DailyQuoteCard';
+import PushNotificationCard from './PushNotificationCard';
 import { createNotification } from '../lib/notifications';
 import { getFamilyColour } from '../lib/familyUtils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -28,7 +30,7 @@ import {
   Plus, MessageSquare, ShieldCheck, Star, Sparkles,
   ChevronRight, ArrowUpRight, AlertCircle, Trash2,
   History, AlertTriangle, Receipt, Eye, X, ClipboardList, BookOpen,
-  Banknote, Loader2
+  Banknote, Loader2, Bell, BellRing
 } from 'lucide-react';
 
 interface Props {
@@ -60,6 +62,10 @@ export default function ParentDashboard({ profile }: Props) {
   const [resolveSubmitting, setResolveSubmitting] = useState(false);
   const [resolveError, setResolveError] = useState<string | null>(null);
   const [resolveSuccess, setResolveSuccess] = useState(false);
+
+  // Nudge a child about an open task
+  const [nudgingTaskId, setNudgingTaskId] = useState<string | null>(null);
+  const [nudgedTaskId, setNudgedTaskId] = useState<string | null>(null);
 
   // Proposal review modal
   const [reviewingProposal, setReviewingProposal] = useState<Task | null>(null);
@@ -365,6 +371,21 @@ export default function ParentDashboard({ profile }: Props) {
       if (reviewingProposal?.id === task.id) setReviewingProposal(null);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleNudge = async (task: Task) => {
+    if (nudgingTaskId) return;
+    setNudgingTaskId(task.id);
+    try {
+      const sendNudge = httpsCallable(functions, 'sendNudge');
+      await sendNudge({ taskId: task.id, householdId: profile.householdId });
+      setNudgedTaskId(task.id);
+      setTimeout(() => setNudgedTaskId(null), 3000);
+    } catch (err) {
+      console.error('Failed to send nudge:', err);
+    } finally {
+      setNudgingTaskId(null);
     }
   };
 
@@ -937,6 +958,25 @@ export default function ParentDashboard({ profile }: Props) {
                                               </button>
                                             </div>
                                           )}
+                                          {['pending', 'accepted', 'needs_retry'].includes(task.status) && (
+                                            <div className="px-5 pb-2.5 flex items-center justify-end">
+                                              <button
+                                                onClick={() => handleNudge(task)}
+                                                disabled={nudgingTaskId === task.id}
+                                                className={`flex items-center gap-1.5 text-[9px] font-black px-3 py-1 rounded-lg uppercase tracking-widest border transition-all disabled:opacity-50 ${
+                                                  nudgedTaskId === task.id
+                                                    ? 'text-emerald-600 border-emerald-200 bg-emerald-50'
+                                                    : 'text-amber-600 border-amber-200 hover:text-white hover:bg-amber-500'
+                                                }`}
+                                              >
+                                                {nudgedTaskId === task.id ? (
+                                                  <><BellRing size={11} /> Nudged!</>
+                                                ) : (
+                                                  <><Bell size={11} /> {nudgingTaskId === task.id ? 'Sending…' : 'Nudge'}</>
+                                                )}
+                                              </button>
+                                            </div>
+                                          )}
                                         </div>
                                       );
                                     })}
@@ -1060,6 +1100,8 @@ export default function ParentDashboard({ profile }: Props) {
                   <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
                      {household && <RewardsManager household={household} />}
                   </div>
+
+                  <PushNotificationCard uid={profile.uid} />
                 </div>
 
               <SuggestFeature

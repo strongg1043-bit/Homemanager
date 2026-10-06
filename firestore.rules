@@ -49,6 +49,8 @@ service cloud.firestore {
           // Dismiss parent onboarding wizard / child welcome screen
           incoming().diff(existing()).affectedKeys().hasOnly(['showOnboarding']) ||
           incoming().diff(existing()).affectedKeys().hasOnly(['showChildOnboarding']) ||
+          // Push notification device tokens
+          incoming().diff(existing()).affectedKeys().hasOnly(['fcmTokens']) ||
           // Point deduction (child-initiated redemption)
           (incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints']) && incoming().totalPoints < existing().totalPoints)
         )) ||
