@@ -174,7 +174,7 @@ export async function sendPaymentConfirmedEmail(
     reference: reference || 'N/A',
   };
 
-  let body = template?.bodyHtml 
+  const body = template?.bodyHtml 
     ? fillTemplate(template.bodyHtml, vars)
     : `<h2 style="color:#1f2937">Great news, ${childName}! 🎉</h2>
        <p>${parentName} has confirmed your payment of <strong>${currencySymbol}${amount}</strong>.</p>
@@ -319,57 +319,9 @@ export async function sendCashoutRequestEmail(
   });
 }
 
-// ── Admin alert: new family registered ───────────────────────────────────────
-// Reads admin emails from settings/adminAccess and notifies each one.
-// Called fire-and-forget from HouseholdSetup — never throws to the caller.
-export async function sendNewFamilyAdminAlert(
-  familyName: string,
-  creatorName: string,
-  creatorEmail: string,
-  householdId: string,
-): Promise<void> {
-  try {
-    const snap = await getDoc(doc(db, 'settings', 'adminAccess'));
-    if (!snap.exists()) return;
-    const adminEmails: string[] = snap.data().emails || [];
-    if (adminEmails.length === 0) return;
-
-    const timestamp = new Date().toLocaleString('en-GB', {
-      day: 'numeric', month: 'long', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-
-    const body = `
-      <h2 style="color:#1B3A5C">🏠 New Family Registered</h2>
-      <p>A new household just joined <strong>Home Anchor</strong>.</p>
-      <div style="background:#F4F7FB;border-left:4px solid #2E7D6B;padding:16px;border-radius:4px;margin:16px 0">
-        <p style="margin:0"><strong>Family name:</strong> ${familyName}</p>
-        <p style="margin:6px 0 0"><strong>Created by:</strong> ${creatorName}${creatorEmail ? ` &lt;${creatorEmail}&gt;` : ''}</p>
-        <p style="margin:6px 0 0"><strong>Household ID:</strong> <code style="font-family:monospace;font-size:12px;background:#e2e8f0;padding:2px 6px;border-radius:4px">${householdId}</code></p>
-        <p style="margin:6px 0 0"><strong>Registered at:</strong> ${timestamp}</p>
-      </div>
-      <p>
-        <a href="${(import.meta.env.VITE_ADMIN_URL as string) || 'https://homemanager-live.web.app'}"
-           style="background:#1B3A5C;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:8px">
-          View in Admin Portal →
-        </a>
-      </p>`;
-
-    await Promise.all(
-      adminEmails.map(email =>
-        sendEmail({
-          to_email: email,
-          to_name: 'Admin',
-          subject: `🏠 New family registered: ${familyName}`,
-          message_html: wrapEmail(body),
-        })
-      )
-    );
-  } catch (err) {
-    // Non-fatal — never block household creation
-    console.error('Admin alert failed:', err);
-  }
-}
+// Admin alert for new household registrations moved server-side — see
+// notifyAdminOnNewHousehold in functions/src/index.ts. Reading the admin email
+// list (settings/adminAccess) is no longer allowed from the client.
 
 /**
  * Child-specific invite email that prominently features the welcome reward.

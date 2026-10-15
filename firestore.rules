@@ -231,7 +231,7 @@ service cloud.firestore {
       match /notifications/{nid} {
         allow read: if isAdmin() || (isMember(hid) && existing().recipientId == request.auth.uid);
         allow delete: if isAdmin();
-        allow create: if isMember(hid);
+        allow create: if isMember(hid) && isValidNotification(incoming(), hid);
         allow update: if isMember(hid) && existing().recipientId == request.auth.uid &&
                        incoming().diff(existing()).affectedKeys().hasOnly(['read']);
       }
@@ -268,9 +268,10 @@ service cloud.firestore {
 
     // --- Global Settings ---
     match /settings/{sid} {
-      allow read: if isSignedIn();
-      // 'adminAccess' is developer-managed only — block ALL client writes to prevent
-      // privilege escalation (any parent writing their email into the admin list).
+      // 'adminAccess' is developer-managed only — block ALL client reads and writes so the
+      // admin email list is never exposed to a signed-in user. isAdmin()'s own get() call is
+      // a privileged rules-engine read and is unaffected by this restriction.
+      allow read: if sid != 'adminAccess' && isSignedIn();
       allow write: if sid != 'adminAccess' && isSignedIn() && getUser(request.auth.uid).role == 'parent';
     }
 
@@ -284,6 +285,16 @@ service cloud.firestore {
     match /suggestions/{sgid} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn();
+    }
+
+    // --- Client error reports ---
+    // Open create (errors can happen pre-auth) but capped and never readable or
+    // editable by clients — this is a write-only crash log for the developer.
+    match /errorLogs/{eid} {
+      allow read, update, delete: if false;
+      allow create: if incoming().message is string && incoming().message.size() <= 1000 &&
+                     (!('stack' in incoming()) || incoming().stack == null || (incoming().stack is string && incoming().stack.size() <= 4000)) &&
+                     incoming().context is string && incoming().context.size() <= 200;
     }
 
     function isValidTask(task) {
@@ -302,6 +313,21 @@ service cloud.firestore {
              task.status == 'proposed' &&
              task.proposedBy == 'child' &&
              task.householdId is string;
+    }
+
+    function isValidNotification(n, hid) {
+      return n.recipientId is string &&
+             n.recipientId in get(/databases/$(database)/documents/households/$(hid)).data.members &&
+             n.recipientRole in ['parent', 'child'] &&
+             n.type in [
+               'task_submitted', 'task_approved', 'task_needs_retry', 'task_assigned',
+               'cashout_requested', 'cashout_paid', 'reward_redeemed', 'task_due_soon',
+               'welcome', 'payment_reminder', 'dispute_raised', 'task_stale', 'parent_nudge'
+             ] &&
+             n.title is string && n.title.size() <= 200 &&
+             n.message is string && n.message.size() <= 500 &&
+             n.read == false &&
+             n.householdId == hid;
     }
 
     function isValidRedemption(red) {

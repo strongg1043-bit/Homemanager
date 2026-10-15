@@ -99,9 +99,11 @@ export interface Task {
   approvedAt: Timestamp | null;
   createdAt: Timestamp;
 
-  // Push notification nudges (written only by the server-side scheduled function)
+  // Push notification nudges (written only server-side, by the scheduled function
+  // or the sendNudge callable)
   lastDueSoonNudgeAt?: Timestamp | null;
   lastStaleNudgeAt?: Timestamp | null;
+  lastManualNudgeAt?: Timestamp | null;
 }
 
 export type RedemptionType = 'reward' | 'cash';

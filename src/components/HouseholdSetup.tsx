@@ -6,7 +6,6 @@ import { motion } from 'motion/react';
 import { Sparkles, Camera, Check, Palette, Type, Save, Loader2, X, Plus, Home } from 'lucide-react';
 import { compressToBase64Profile } from '../lib/imageUtils';
 import { COLOUR_OPTIONS, getFamilyColour, generateInviteCode } from '../lib/familyUtils';
-import { sendNewFamilyAdminAlert } from '../lib/email';
 
 interface Props {
   profile: UserProfile;
@@ -186,13 +185,7 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
           householdId: householdId
         });
 
-        // Fire-and-forget — notify admin of new registration; never blocks the user
-        sendNewFamilyAdminAlert(
-          name.trim(),
-          profile.displayName || 'Unknown',
-          profile.email || '',
-          householdId,
-        ).catch(() => {});
+        // Admin is notified server-side by the notifyAdminOnNewHousehold Firestore trigger.
 
         // Signal to ParentDashboard to show the onboarding wizard after this household creation
         try { sessionStorage.setItem('ha_new_household', profile.uid); } catch { /* ignore */ }

@@ -1,6 +1,8 @@
 {
   "name": "home-anchor-functions",
-  "engines": { "node": "20" },
+  "engines": {
+    "node": "22"
+  },
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
@@ -8,10 +10,10 @@
   },
   "dependencies": {
     "firebase-admin": "^13",
-    "firebase-functions": "^6"
+    "firebase-functions": "^7.4.0"
   },
   "devDependencies": {
-    "typescript": "~5.8.2",
-    "@types/node": "^20"
+    "@types/node": "^22",
+    "typescript": "~5.8.2"
   }
 }
