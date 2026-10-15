@@ -301,6 +301,77 @@ export async function signIn(page: Page, email: string, password: string) {
   }
 }
 
+/** Look up a user's uid by email via REST — setupFamily doesn't return child uids directly. */
+export async function getUidByEmail(email: string): Promise<string> {
+  const ctx = await request.newContext();
+  const resp = await ctx.get(`${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents/users`);
+  const json = await resp.json() as { documents?: { name: string; fields: Record<string, { stringValue?: string }> }[] };
+  const doc = json.documents?.find(d => d.fields.email?.stringValue === email);
+  await ctx.dispose();
+  if (!doc) throw new Error(`No user found with email ${email}`);
+  return doc.name.split('/').pop()!;
+}
+
+/** Directly set a child's totalPoints via REST — for tests that need a starting balance
+ *  without running the full task-approval flow first. */
+export async function grantPoints(childUid: string, points: number) {
+  const ctx = await request.newContext();
+  const resp = await ctx.patch(
+    `${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents/users/${childUid}?updateMask.fieldPaths=totalPoints`,
+    { data: { fields: { totalPoints: { integerValue: String(points) } } } },
+  );
+  if (!resp.ok()) throw new Error(`grantPoints failed: ${resp.status()} ${await resp.text()}`);
+  await ctx.dispose();
+}
+
+/** Directly create a task via REST — for tests that need an existing task without
+ *  running the full parent-creates-task UI flow first (already covered elsewhere). */
+export async function seedTask(opts: {
+  householdId: string;
+  assignedTo: string;
+  assignedToName: string;
+  title: string;
+  status?: string;
+  pointValue?: number;
+}): Promise<string> {
+  const ctx = await request.newContext();
+  const taskId = randomId();
+  const now = new Date().toISOString();
+  const resp = await ctx.post(
+    `${FIRESTORE_EMULATOR}/v1/projects/${PROJECT_ID}/databases/(default)/documents/households/${opts.householdId}/tasks?documentId=${taskId}`,
+    {
+      data: {
+        fields: {
+          id:             { stringValue: taskId },
+          householdId:    { stringValue: opts.householdId },
+          title:          { stringValue: opts.title },
+          description:    { stringValue: '' },
+          assignedTo:     { stringValue: opts.assignedTo },
+          assignedToName: { stringValue: opts.assignedToName },
+          pointValue:     { integerValue: String(opts.pointValue ?? 20) },
+          taskType:       { stringValue: 'adhoc_date' },
+          status:         { stringValue: opts.status ?? 'accepted' },
+          kpi:            { stringValue: 'Done well' },
+          kpiLocked:      { booleanValue: true },
+          evidenceType:   { stringValue: 'any' },
+          dueDate:        { nullValue: null },
+          requiresProof:  { booleanValue: false },
+          beforePhotoUrl: { nullValue: null },
+          proofPhotoUrl:  { nullValue: null },
+          proposedBy:     { nullValue: null },
+          rewardLocked:   { booleanValue: true },
+          completedAt:    { nullValue: null },
+          approvedAt:     { nullValue: null },
+          createdAt:      { timestampValue: now },
+        },
+      },
+    },
+  );
+  if (!resp.ok()) throw new Error(`seedTask failed: ${resp.status()} ${await resp.text()}`);
+  await ctx.dispose();
+  return taskId;
+}
+
 /** Read the household invite code from the parent Family tab. */
 export async function getInviteCode(page: Page): Promise<string> {
   await page.getByRole('button', { name: 'Family' }).click();
