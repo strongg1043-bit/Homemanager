@@ -2,7 +2,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { initializeApp } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Firestore, Timestamp } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 
 initializeApp();
@@ -85,7 +85,7 @@ interface PushData {
 // Sends a push to every device registered for a user, pruning tokens the
 // browser/OS has invalidated so the array doesn't grow stale forever.
 async function sendPushToUser(
-  db: FirebaseFirestore.Firestore,
+  db: Firestore,
   uid: string,
   title: string,
   body: string,
@@ -119,7 +119,7 @@ async function sendPushToUser(
 // Mirrors the push as an in-app notification so it shows in the bell even
 // if the device never granted push permission, or the push silently failed.
 async function createInAppNotification(
-  db: FirebaseFirestore.Firestore,
+  db: Firestore,
   householdId: string,
   recipientId: string,
   recipientRole: 'parent' | 'child',
@@ -209,7 +209,7 @@ export const sendNudge = onCall({ region: 'us-central1' }, async (request) => {
   const task = taskSnap.data()!;
   if (!task.assignedTo) throw new HttpsError('failed-precondition', 'Task has no assignee.');
 
-  const lastManualNudgeAt = task.lastManualNudgeAt as FirebaseFirestore.Timestamp | undefined;
+  const lastManualNudgeAt = task.lastManualNudgeAt as Timestamp | undefined;
   if (lastManualNudgeAt && Date.now() - lastManualNudgeAt.toMillis() < 60_000) {
     throw new HttpsError('resource-exhausted', 'Already nudged this task in the last minute — give it a moment.');
   }
