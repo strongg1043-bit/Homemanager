@@ -585,6 +585,15 @@ export default function Auth() {
                 </button>
 
                 {!isLogin && (
+                  <p className="text-center text-[10px] text-slate-400 font-medium -mt-1">
+                    By signing up, you agree to our{' '}
+                    <a href="https://home-anchor.org/terms.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-600">Terms</a>
+                    {' '}and{' '}
+                    <a href="https://home-anchor.org/privacy.html" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-600">Privacy Policy</a>.
+                  </p>
+                )}
+
+                {!isLogin && (
                   <button
                     type="button"
                     onClick={() => setStep('role')}
