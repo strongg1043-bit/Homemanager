@@ -10,6 +10,8 @@ coverage/
 test-results/
 playwright-report/
 firestore-debug.log
+.firebase/
+functions/lib/
 
 # Android TWA (Play Store packaging) — signing key and build output never go in git
 android-twa/.gradle/
