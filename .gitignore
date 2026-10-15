@@ -7,6 +7,9 @@ coverage/
 .env*
 !.env.example
 .claude/
+test-results/
+playwright-report/
+firestore-debug.log
 
 # Android TWA (Play Store packaging) — signing key and build output never go in git
 android-twa/.gradle/
