@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   BookOpen, Plus, Zap, Pencil, Trash2, CheckCircle, X,
   Users, RefreshCw, Calendar, Sparkles, ChevronDown, ChevronUp,
-  Clock, Star, AlertCircle
+  Clock, AlertCircle
 } from 'lucide-react';
 
 interface TaskTemplate {
@@ -131,7 +131,7 @@ const EMPTY_FORM = {
   requiresProof: true,
 };
 
-export default function TaskLibrary({ householdId, members, profile, currency }: Props) {
+export default function TaskLibrary({ householdId, members, profile }: Props) {
   const [templates, setTemplates] = useState<TaskTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);

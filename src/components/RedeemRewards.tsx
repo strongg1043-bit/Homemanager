@@ -5,7 +5,7 @@ import { Household, UserProfile, RewardItem } from '../types';
 import { createNotification } from '../lib/notifications';
 import { sendCashoutRequestEmail } from '../lib/email';
 import { motion, AnimatePresence } from 'motion/react';
-import { Gift, Banknote, CheckCircle2, XCircle, Info, Loader2, ArrowRight } from 'lucide-react';
+import { Gift, Banknote, CheckCircle2, Info, Loader2, ArrowRight } from 'lucide-react';
 import BetaFundingModal from './BetaFundingModal';
 import { shouldShowFundingModal, recordFundingModalShown } from '../lib/fundingModal';
 

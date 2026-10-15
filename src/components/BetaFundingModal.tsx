@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Heart, Copy, Check, ExternalLink, Sparkles } from 'lucide-react';
+import { X, Heart, Copy, Check, Sparkles } from 'lucide-react';
 import { recordDonationEvent } from '../lib/analytics';
 
 interface Props {

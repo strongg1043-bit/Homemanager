@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { doc, setDoc, onSnapshot, collection, query, where, orderBy, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, query, where, orderBy, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { resetRecurringTasks } from '../lib/taskUtils';
 import { UserProfile, Task, Household, Redemption } from '../types';
 import ChildTaskCard from './ChildTaskCard';
@@ -19,7 +19,7 @@ import { createNotification } from '../lib/notifications';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sparkles, Trophy, Wallet, LogOut, CheckCircle, Clock,
-  Users, Settings, Plus, Home, Star, Shield,
+  Settings, Plus, Home, Star, Shield,
   ChevronRight, Camera, X, Send, History, Loader2,
   BellRing, AlertTriangle, Banknote, ClipboardList
 } from 'lucide-react';

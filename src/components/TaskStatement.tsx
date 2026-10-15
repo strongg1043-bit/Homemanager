@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../firebase';
-import { collection, query, where, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
 import { Task, Redemption, UserProfile } from '../types';
-import { motion } from 'motion/react';
-import { Printer, Filter, TrendingUp, TrendingDown, Wallet, CheckSquare } from 'lucide-react';
+import { Printer } from 'lucide-react';
 
 interface Props {
   householdId: string;
@@ -139,7 +138,7 @@ export default function TaskStatement({ householdId, profile, members, currency,
         date: (r.createdAt as Timestamp)?.toDate() ?? new Date(0),
       }));
 
-    let combined: Row[] = [];
+    let combined: Row[];
     if (typeFilter === 'all') combined = [...taskRows, ...redRows];
     else if (typeFilter === 'tasks') combined = taskRows;
     else combined = redRows;
@@ -321,8 +320,8 @@ export default function TaskStatement({ householdId, profile, members, currency,
               const statusInfo = STATUS_DISPLAY[statusKey] ?? { label: row.data.status, icon: '•', color: 'text-slate-500' };
 
               // Type badge
-              let typeBadge = '';
-              let typeBadgeClass = '';
+              let typeBadge: string;
+              let typeBadgeClass: string;
               if (row.kind === 'task') {
                 const t = row.data as Task;
                 typeBadge = (t.taskType ?? 'adhoc_date').replace('_', ' ');

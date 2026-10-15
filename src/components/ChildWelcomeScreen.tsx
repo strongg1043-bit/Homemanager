@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { db } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { UserProfile, Household, Task } from '../types';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { getFamilyColour } from '../lib/familyUtils';
-import { CheckCircle, ChevronRight, Loader2, Trophy, Star, Sparkles } from 'lucide-react';
+import { ChevronRight, Loader2, Trophy, Sparkles } from 'lucide-react';
 
 interface Props {
   profile: UserProfile;

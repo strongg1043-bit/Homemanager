@@ -7,7 +7,7 @@ import { createNotification } from '../lib/notifications';
 import {
   Camera, CheckCircle, Loader2, Calendar,
   ClipboardCheck, Sparkles,
-  PlayCircle, Clock, RotateCcw,
+  PlayCircle, Clock,
   History, AlertTriangle, MessageSquare, Eye, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { compressToBase64 } from '../lib/imageUtils';
@@ -36,7 +36,7 @@ const ACCENT_COLOURS: Record<string, string> = {
 };
 
 const ChildTaskCard: React.FC<ChildTaskCardProps> = ({
-  task, currency, onUpdated, parents = [], profile, onViewAudit, onOpenDispute,
+  task, onUpdated, parents = [], profile, onViewAudit, onOpenDispute,
   isExpanded = false, onToggle,
 }) => {
   // On needs_retry, do NOT pre-populate the old proof — force a fresh upload
@@ -311,7 +311,6 @@ const ChildTaskCard: React.FC<ChildTaskCardProps> = ({
           const isRed    = effectiveUrgency === 'overdue' || effectiveUrgency === 'today';
           const isOrange = effectiveUrgency === 'tomorrow';
           const isAmber  = effectiveUrgency === 'soon';
-          const isWeek   = effectiveUrgency === 'week';
 
           // Pick the deadline being shown (dueDate takes priority over endDate)
           const deadlineDate = dueDate ?? endDate;

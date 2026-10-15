@@ -3,9 +3,9 @@ import { db } from '../firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Redemption, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, Banknote, Landmark, CreditCard, 
-  Wallet, Camera, Check, Loader2, Info,
+import {
+  X, Banknote, Landmark, CreditCard,
+  Wallet, Camera, Check, Loader2,
   Receipt, FileText
 } from 'lucide-react';
 import { compressToBase64Profile } from '../lib/imageUtils';

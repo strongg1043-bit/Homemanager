@@ -6,10 +6,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { createNotification } from '../lib/notifications';
 import { sendTaskApprovedEmail, sendTaskNeedsRetryEmail } from '../lib/email';
 import {
-  Check, X, AlertCircle, User, Calendar,
-  Image as ImageIcon, ClipboardCheck, Info,
-  Camera, Eye, ArrowRight, CornerUpLeft,
-  Sparkles, ShieldCheck, History, AlertTriangle, Trash2
+  Check, X, User,
+  ClipboardCheck,
+  Eye, ArrowRight, CornerUpLeft,
+  ShieldCheck, History, AlertTriangle, Trash2
 } from 'lucide-react';
 import { TYPE_STYLES, STATUS_LABELS } from '../lib/taskConstants';
 
@@ -25,7 +25,7 @@ interface ParentTaskCardProps {
 }
 
 
-const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, currency, members, emailEnabled = true, onViewAudit, onOpenDispute, onDelete }) => {
+const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, members, emailEnabled = true, onViewAudit, onOpenDispute, onDelete }) => {
   const [submitting, setSubmitting] = useState(false);
   const [showFullPhoto, setShowFullPhoto] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);

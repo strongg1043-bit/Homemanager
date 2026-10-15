@@ -3,9 +3,8 @@ import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Task, Redemption, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, AlertTriangle, Send, Loader2, 
-  MessageSquare, HelpCircle, ArrowRight
+import {
+  X, AlertTriangle, Send, Loader2,
 } from 'lucide-react';
 import { createNotification } from '../lib/notifications';
 

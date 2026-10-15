@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp, collection, getDocs, query, where, limit, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, collection, getDocs, query, where, limit, arrayUnion, writeBatch } from 'firebase/firestore';
 import { Role } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  LogIn, UserPlus, Star, Shield, ArrowRight, Copy, Check, Sparkles,
+  Star, Shield, ArrowRight, Copy, Check, Sparkles,
   ClipboardCheck, Banknote, ShieldCheck, RefreshCw, Anchor,
 } from 'lucide-react';
 import { generateInviteCode } from '../lib/familyUtils';

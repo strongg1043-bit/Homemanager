@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { db } from '../firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, doc, setDoc } from 'firebase/firestore';
 import { sendWelcomeEmail, sendChildInviteEmail } from '../lib/email';
-import { Mail, UserPlus, Check, Loader2, Sparkles, Send, Shield, Star, Gift } from 'lucide-react';
+import { UserPlus, Check, Loader2, Sparkles, Send, Shield, Star, Gift } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface Props {

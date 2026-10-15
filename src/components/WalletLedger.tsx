@@ -30,7 +30,7 @@ type Transaction =
   | { type: 'task'; data: Task; date: Date }
   | { type: 'redemption'; data: Redemption; date: Date };
 
-export default function WalletLedger({ householdId, childId, childName, currency, totalPoints, isParent, onRequestPayment }: WalletLedgerProps) {
+export default function WalletLedger({ householdId, childId, currency, totalPoints, isParent, onRequestPayment }: WalletLedgerProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);

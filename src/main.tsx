@@ -2,6 +2,7 @@ import { StrictMode, Component, ReactNode, ErrorInfo } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { reportError, installGlobalErrorReporting } from './lib/errorReporting';
 
 interface EBProps  { children: ReactNode }
 interface EBState  { error: Error | null }
@@ -13,6 +14,7 @@ class ErrorBoundary extends Component<EBProps, EBState> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Unhandled app error:', error, info);
+    reportError(error, `React render: ${info.componentStack?.split('\n')[1]?.trim() ?? 'unknown'}`);
   }
 
   render() {
@@ -42,6 +44,8 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
 }
+
+installGlobalErrorReporting();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

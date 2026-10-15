@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { Task, Redemption, Notification, UserProfile } from '../types';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { Task, Redemption, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  X, Clock, CheckCircle, Camera, Banknote,
-  AlertTriangle, History, ArrowRight, User,
-  Calendar, Shield
+  X, CheckCircle, Camera, Banknote,
+  AlertTriangle, History,
+  Shield
 } from 'lucide-react';
 
 interface Props {
@@ -28,7 +28,7 @@ interface TimelineEvent {
   details?: React.ReactNode;
 }
 
-export default function AuditTrailDrawer({ isOpen, onClose, task, redemption, profile }: Props) {
+export default function AuditTrailDrawer({ isOpen, onClose, task, redemption }: Props) {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -253,7 +253,7 @@ export default function AuditTrailDrawer({ isOpen, onClose, task, redemption, pr
                   <div className="absolute left-[13px] top-2 bottom-2 w-0.5 bg-slate-100" />
 
                   <div className="space-y-8">
-                    {events.map((event, idx) => (
+                    {events.map((event) => (
                       <div key={event.id} className="relative pl-10">
                         {/* Circle */}
                         <div className={`absolute left-0 top-1 w-7 h-7 ${event.color} rounded-full flex items-center justify-center text-white shadow-sm ring-4 ring-white z-10`}>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth, functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
-import { doc, collection, query, where, onSnapshot, updateDoc, arrayUnion, arrayRemove, orderBy, serverTimestamp, increment, writeBatch, deleteDoc, runTransaction, Timestamp, getDoc, setDoc } from 'firebase/firestore';
+import { doc, collection, query, where, onSnapshot, updateDoc, orderBy, serverTimestamp, increment, deleteDoc, runTransaction, Timestamp, getDoc, setDoc } from 'firebase/firestore';
 import { UserProfile, Household, Task, Redemption, Dispute, EvidenceType } from '../types';
 import ParentTaskCard from './ParentTaskCard';
 import CreateTaskForm from './CreateTaskForm';
@@ -15,21 +15,19 @@ import AuditTrailDrawer from './AuditTrailDrawer';
 import PaymentConfirmationModal from './PaymentConfirmationModal';
 import DisputeModal from './DisputeModal';
 import InviteMemberCard from './InviteMemberCard';
-import InviteParentCard from './InviteParentCard';
 import TaskStatement from './TaskStatement';
 import WalletLedger from './WalletLedger';
 import TaskLibrary from './TaskLibrary';
 import OnboardingWizard from './OnboardingWizard';
 import DailyQuoteCard from './DailyQuoteCard';
 import PushNotificationCard from './PushNotificationCard';
-import { createNotification } from '../lib/notifications';
 import { getFamilyColour } from '../lib/familyUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   LogOut, CheckCircle, Clock, Users, Settings,
-  Plus, MessageSquare, ShieldCheck, Star, Sparkles,
-  ChevronRight, ArrowUpRight, AlertCircle, Trash2,
-  History, AlertTriangle, Receipt, Eye, X, ClipboardList, BookOpen,
+  Plus, MessageSquare, ShieldCheck, Sparkles,
+  AlertCircle,
+  History, AlertTriangle, X, ClipboardList, BookOpen,
   Banknote, Loader2, Bell, BellRing
 } from 'lucide-react';
 
@@ -66,6 +64,8 @@ export default function ParentDashboard({ profile }: Props) {
   // Nudge a child about an open task
   const [nudgingTaskId, setNudgingTaskId] = useState<string | null>(null);
   const [nudgedTaskId, setNudgedTaskId] = useState<string | null>(null);
+  const [nudgeErrorTaskId, setNudgeErrorTaskId] = useState<string | null>(null);
+  const [nudgeErrorMessage, setNudgeErrorMessage] = useState('');
 
   // Proposal review modal
   const [reviewingProposal, setReviewingProposal] = useState<Task | null>(null);
@@ -307,6 +307,10 @@ export default function ParentDashboard({ profile }: Props) {
         }).catch(() => {});
       }
     }).catch(() => {});
+    // Intentionally one-shot per household load — only backfills a missing inviteCodes doc
+    // (the snap.exists() check no-ops once it's created), so re-running on every name/points
+    // edit would just be wasted reads, not a bug fix.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [household?.id]);
 
   // Show the onboarding wizard when profile.showOnboarding is true.
@@ -317,12 +321,6 @@ export default function ParentDashboard({ profile }: Props) {
       setShowOnboardingWizard(true);
     }
   }, [profile.showOnboarding]);
-
-  const stripUndefined = <T extends Record<string, any>>(obj: T): T => {
-    return Object.fromEntries(
-      Object.entries(obj).filter(([_, v]) => v !== undefined)
-    ) as T;
-  };
 
   const openReviewProposal = (task: Task) => {
     setReviewingProposal(task);
@@ -384,6 +382,10 @@ export default function ParentDashboard({ profile }: Props) {
       setTimeout(() => setNudgedTaskId(null), 3000);
     } catch (err) {
       console.error('Failed to send nudge:', err);
+      const code = (err as { code?: string })?.code;
+      setNudgeErrorTaskId(task.id);
+      setNudgeErrorMessage(code === 'functions/resource-exhausted' ? 'Already nudged — wait a bit' : 'Could not send nudge');
+      setTimeout(() => setNudgeErrorTaskId(null), 3000);
     } finally {
       setNudgingTaskId(null);
     }
@@ -446,7 +448,6 @@ export default function ParentDashboard({ profile }: Props) {
   const pendingSubmissions = tasks.filter(t => t.status === 'submitted');
   const taskProposals = tasks.filter(t => t.status === 'proposed' && t.proposedBy === 'child');
   const pendingRedemptions = redemptions.filter(r => r.status === 'pending');
-  const paidRedemptions = redemptions.filter(r => r.status === 'paid');
   const openDisputes = disputes.filter(d => d.status === 'open');
   const children = members.filter(m => m.role === 'child');
 
@@ -777,6 +778,13 @@ export default function ParentDashboard({ profile }: Props) {
                 <h2 className="text-3xl font-black text-slate-900 mb-2 font-sans">Family</h2>
                 <p className="text-slate-400 font-medium text-sm mb-8">Manage tasks, balances and members</p>
 
+                {membersError && (
+                  <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-2 text-red-600 text-sm font-bold">
+                    <AlertCircle size={18} className="flex-shrink-0" />
+                    Couldn't load family members: {membersError}
+                  </div>
+                )}
+
                 <div className="grid gap-4">
                   {children.map(child => {
                     const childPendingRedemptions = redemptions.filter(r => r.childId === child.uid && r.status === 'pending');
@@ -966,11 +974,15 @@ export default function ParentDashboard({ profile }: Props) {
                                                 className={`flex items-center gap-1.5 text-[9px] font-black px-3 py-1 rounded-lg uppercase tracking-widest border transition-all disabled:opacity-50 ${
                                                   nudgedTaskId === task.id
                                                     ? 'text-emerald-600 border-emerald-200 bg-emerald-50'
+                                                    : nudgeErrorTaskId === task.id
+                                                    ? 'text-red-500 border-red-200 bg-red-50'
                                                     : 'text-amber-600 border-amber-200 hover:text-white hover:bg-amber-500'
                                                 }`}
                                               >
                                                 {nudgedTaskId === task.id ? (
                                                   <><BellRing size={11} /> Nudged!</>
+                                                ) : nudgeErrorTaskId === task.id ? (
+                                                  <>{nudgeErrorMessage}</>
                                                 ) : (
                                                   <><Bell size={11} /> {nudgingTaskId === task.id ? 'Sending…' : 'Nudge'}</>
                                                 )}
