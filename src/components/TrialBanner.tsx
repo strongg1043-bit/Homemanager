@@ -14,7 +14,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /** Only shown once the trial is in its final week — stays out of the way until then. */
 export default function TrialBanner({ household }: Props) {
   const [starting, setStarting] = useState(false);
-  const { usdPrice } = useLocalizedPrice('ZAR');
+  const { zarPrice } = useLocalizedPrice();
 
   if (household.subscriptionStatus !== 'trialing' || !household.trialEndsAt) return null;
   const daysLeft = Math.ceil((household.trialEndsAt.toMillis() - Date.now()) / MS_PER_DAY);
@@ -39,7 +39,7 @@ export default function TrialBanner({ household }: Props) {
       <p className="text-amber-800 text-xs font-bold flex items-center gap-2">
         <Clock size={14} />
         {daysLeft <= 0 ? 'Your free trial ends today' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left in your free trial`}
-        {' — '}{usdPrice}/mo after that.
+        {' — '}{zarPrice}/mo after that.
       </p>
       <button
         onClick={handleSubscribe}

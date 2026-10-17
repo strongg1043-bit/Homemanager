@@ -2,39 +2,51 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { db } from '../firebase';
 
-// Actual billing always happens in USD via Lemon Squeezy — this is only ever
-// used to show an approximate local-currency price on the paywall.
-export const MONTHLY_PRICE_USD_CENTS = 499; // placeholder until finalized in the Lemon Squeezy dashboard
+// Price lives in the Lemon Squeezy dashboard (ZAR is the store's display
+// currency — Lemon Squeezy always processes the actual charge in USD at
+// real-time rates, so this is the one number we need to mirror). This is
+// a fallback for before settings/pricing has loaded.
+export const DEFAULT_MONTHLY_PRICE_ZAR_CENTS = 7900;
+
+interface PricingDoc {
+  monthlyPriceZarCents?: number;
+}
 
 interface FxRatesDoc {
   rates?: Record<string, number>;
 }
 
-/** Formats cents as a USD string, e.g. 499 → "$4.99". */
-export function formatUsd(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
+/** Formats cents as a ZAR string, e.g. 7900 → "R79". */
+export function formatZar(cents: number): string {
+  const amount = cents / 100;
+  return `R${Number.isInteger(amount) ? amount : amount.toFixed(2)}`;
 }
 
 /**
- * Subscribes to the daily-refreshed FX rates and returns the USD price plus
- * an approximate conversion to the given display currency (e.g. "R92").
- * Returns null for localPrice while rates haven't loaded yet, or for a
- * currency the refresh job doesn't track (falls back to USD-only display).
+ * Subscribes to settings/pricing and the daily-refreshed FX rates, returning
+ * the ZAR price (what Lemon Squeezy's checkout will actually show) plus an
+ * approximate USD equivalent for context. The USD figure is informational —
+ * Lemon Squeezy computes the real charge itself at checkout time.
  */
-export function useLocalizedPrice(currencyCode: string): { usdPrice: string; localPrice: string | null } {
+export function useLocalizedPrice(): { zarPrice: string; usdEstimate: string | null } {
+  const [priceCents, setPriceCents] = useState(DEFAULT_MONTHLY_PRICE_ZAR_CENTS);
   const [rates, setRates] = useState<Record<string, number> | null>(null);
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'settings', 'fxRates'), (snap) => {
+    const unsubPricing = onSnapshot(doc(db, 'settings', 'pricing'), (snap) => {
+      const cents = (snap.data() as PricingDoc | undefined)?.monthlyPriceZarCents;
+      if (cents) setPriceCents(cents);
+    }, () => {});
+    const unsubRates = onSnapshot(doc(db, 'settings', 'fxRates'), (snap) => {
       setRates((snap.data() as FxRatesDoc | undefined)?.rates ?? null);
     }, () => setRates(null));
-    return unsub;
+    return () => { unsubPricing(); unsubRates(); };
   }, []);
 
-  const usdPrice = formatUsd(MONTHLY_PRICE_USD_CENTS);
-  const rate = rates?.[currencyCode.toUpperCase()];
-  if (!rate) return { usdPrice, localPrice: null };
+  const zarPrice = formatZar(priceCents);
+  const zarPerUsd = rates?.ZAR;
+  if (!zarPerUsd) return { zarPrice, usdEstimate: null };
 
-  const localAmount = Math.round((MONTHLY_PRICE_USD_CENTS / 100) * rate);
-  return { usdPrice, localPrice: `≈${currencyCode.toUpperCase()}${localAmount}` };
+  const usdAmount = (priceCents / 100) / zarPerUsd;
+  return { zarPrice, usdEstimate: `≈$${usdAmount.toFixed(2)}` };
 }

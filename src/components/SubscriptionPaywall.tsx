@@ -14,9 +14,7 @@ interface Props {
 export default function SubscriptionPaywall({ variant, household, profile }: Props) {
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
-  // Household's own `currency` field is the points/allowance symbol (e.g. "R"), not a
-  // billing locale — the display price always shows ZAR for now regardless of that setting.
-  const { usdPrice, localPrice } = useLocalizedPrice('ZAR');
+  const { zarPrice, usdEstimate } = useLocalizedPrice();
 
   const handleSubscribe = async () => {
     setStarting(true);
@@ -54,8 +52,8 @@ export default function SubscriptionPaywall({ variant, household, profile }: Pro
                 tasks, rewards, everything — subscribe below.
               </p>
               <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5">
-                <p className="text-3xl font-black text-slate-900">{usdPrice}<span className="text-sm font-bold text-slate-400">/mo</span></p>
-                {localPrice && <p className="text-xs font-bold text-slate-400 mt-1">{localPrice}/mo · billed in USD</p>}
+                <p className="text-3xl font-black text-slate-900">{zarPrice}<span className="text-sm font-bold text-slate-400">/mo</span></p>
+                {usdEstimate && <p className="text-xs font-bold text-slate-400 mt-1">{usdEstimate}/mo · charged in USD</p>}
               </div>
               {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
               <button
