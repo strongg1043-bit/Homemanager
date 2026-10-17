@@ -11,8 +11,6 @@ import {
 import { compressToBase64Profile } from '../lib/imageUtils';
 import { createNotification } from '../lib/notifications';
 import { sendPaymentConfirmedEmail } from '../lib/email';
-import BetaFundingModal from './BetaFundingModal';
-import { shouldShowFundingModal, recordFundingModalShown } from '../lib/fundingModal';
 
 interface Props {
   isOpen: boolean;
@@ -39,7 +37,6 @@ export default function PaymentConfirmationModal({ isOpen, onClose, redemption, 
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
-  const [showFunding, setShowFunding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -91,13 +88,7 @@ export default function PaymentConfirmationModal({ isOpen, onClose, redemption, 
         );
       }
 
-      // Show funding modal before closing (throttled to once per 7 days)
-      if (shouldShowFundingModal()) {
-        recordFundingModalShown();
-        setShowFunding(true);
-      } else {
-        onClose();
-      }
+      onClose();
     } catch (err) {
       console.error(err);
       setFormError('Failed to confirm payment. Please check your connection and try again.');
@@ -107,7 +98,6 @@ export default function PaymentConfirmationModal({ isOpen, onClose, redemption, 
   };
 
   return (
-    <>
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 flex items-end sm:items-center justify-center z-[110] sm:p-4">
@@ -288,12 +278,5 @@ export default function PaymentConfirmationModal({ isOpen, onClose, redemption, 
         </div>
       )}
     </AnimatePresence>
-
-    <BetaFundingModal
-      isOpen={showFunding}
-      onClose={() => { setShowFunding(false); onClose(); }}
-      variant="parent"
-    />
-    </>
   );
 }

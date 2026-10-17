@@ -28,6 +28,8 @@ export interface RewardItem {
   pointCost: number;
 }
 
+export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired';
+
 export interface Household {
   id: string;
   name: string;
@@ -46,6 +48,16 @@ export interface Household {
   familyMotto: string | null;
   timezone?: string;
   onboardingTaskPoints?: number;
+
+  // Subscription billing — written only server-side (trial-init trigger, the
+  // daily expiry sweep, and the Lemon Squeezy webhook). Never client-writable.
+  subscriptionStatus?: SubscriptionStatus;
+  trialEndsAt?: Timestamp;
+  currentPeriodEnd?: Timestamp | null;
+  lemonSqueezy?: {
+    customerId?: number;
+    subscriptionId?: number;
+  } | null;
 }
 
 export interface Task {

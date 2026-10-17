@@ -21,6 +21,8 @@ import TaskLibrary from './TaskLibrary';
 import OnboardingWizard from './OnboardingWizard';
 import DailyQuoteCard from './DailyQuoteCard';
 import PushNotificationCard from './PushNotificationCard';
+import SubscriptionPaywall from './SubscriptionPaywall';
+import TrialBanner from './TrialBanner';
 import { getFamilyColour } from '../lib/familyUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -435,6 +437,10 @@ export default function ParentDashboard({ profile }: Props) {
 
   if (!profile.householdId) return <HouseholdSetup profile={profile} />;
 
+  if (household?.subscriptionStatus === 'expired') {
+    return <SubscriptionPaywall variant="parent" household={household} profile={profile} />;
+  }
+
   if (showOnboardingWizard && household) {
     return (
       <OnboardingWizard
@@ -455,6 +461,7 @@ export default function ParentDashboard({ profile }: Props) {
 
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
+      {household && <TrialBanner household={household} />}
       {/* Family Header */}
       <header className="bg-white border-b border-slate-100 sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">

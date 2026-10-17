@@ -32,6 +32,14 @@
         { "fieldPath": "email", "order": "ASCENDING" },
         { "fieldPath": "householdId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "households",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subscriptionStatus", "order": "ASCENDING" },
+        { "fieldPath": "trialEndsAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

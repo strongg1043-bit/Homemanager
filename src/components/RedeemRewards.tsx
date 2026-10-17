@@ -6,8 +6,6 @@ import { createNotification } from '../lib/notifications';
 import { sendCashoutRequestEmail } from '../lib/email';
 import { motion, AnimatePresence } from 'motion/react';
 import { Gift, Banknote, CheckCircle2, Info, Loader2, ArrowRight } from 'lucide-react';
-import BetaFundingModal from './BetaFundingModal';
-import { shouldShowFundingModal, recordFundingModalShown } from '../lib/fundingModal';
 
 interface RedeemRewardsProps {
   household: Household;
@@ -21,7 +19,6 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
   const [confirmingCash, setConfirmingCash] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
-  const [showFunding, setShowFunding] = useState(false);
 
   const handleRedeem = async (reward: RewardItem) => {
     setIsProcessing(true);
@@ -62,10 +59,6 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
       });
 
       setConfirmingReward(null);
-      if (shouldShowFundingModal()) {
-        recordFundingModalShown();
-        setShowFunding(true);
-      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg === 'Insufficient balance' ? 'Not enough points for this reward.' : 'Redemption failed. Please try again.');
@@ -117,10 +110,6 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
 
       setConfirmingCash(false);
       setCashAmount(minCashOut);
-      if (shouldShowFundingModal()) {
-        recordFundingModalShown();
-        setShowFunding(true);
-      }
 
       // Notify parents
       const parents = members.filter(m => m.role === 'parent');
@@ -371,13 +360,6 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
           </div>
         )}
       </AnimatePresence>
-
-      <BetaFundingModal
-        isOpen={showFunding}
-        onClose={() => setShowFunding(false)}
-        variant="child"
-        childName={profile.displayName}
-      />
     </div>
   );
 }

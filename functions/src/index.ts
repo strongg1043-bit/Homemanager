@@ -1,9 +1,10 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue, Firestore, Timestamp } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
+import * as crypto from 'node:crypto';
 
 initializeApp();
 
@@ -323,5 +324,250 @@ export const notifyAdminOnNewHousehold = onDocumentCreated(
           .catch((err) => console.error('[AdminAlert] Failed to notify', email, err))
       )
     );
+  },
+);
+
+// ── Subscription billing (Lemon Squeezy) ────────────────────────────────────
+//
+// Model: every household gets a 60-day free trial from creation. After that,
+// subscriptionStatus must be 'active' (or still in Lemon Squeezy's own
+// cancellation grace period, i.e. 'cancelled' with ends_at in the future) or
+// the app locks. All of subscriptionStatus / trialEndsAt / currentPeriodEnd /
+// lemonSqueezy is written only here — never by the client (enforced in
+// firestore.rules) — so a household can't grant itself access.
+
+type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired';
+
+const TRIAL_LENGTH_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
+
+// Grants the 60-day trial the moment a household is created.
+export const initializeSubscriptionTrial = onDocumentCreated(
+  { document: 'households/{householdId}', region: 'us-central1' },
+  async (event) => {
+    const snap = event.data;
+    if (!snap) return;
+    if (snap.data()?.subscriptionStatus) return; // already set — avoid clobbering a backfill
+
+    await snap.ref.update({
+      subscriptionStatus: 'trialing',
+      trialEndsAt: Timestamp.fromMillis(Date.now() + TRIAL_LENGTH_MS),
+      currentPeriodEnd: null,
+      lemonSqueezy: null,
+    });
+  },
+);
+
+// Daily sweep: flips any household whose trial has run out, and hasn't
+// subscribed, from 'trialing' to 'expired' (which the client treats as a
+// hard lockout). Subscribing before the trial ends short-circuits this via
+// the webhook below, which moves status to 'active' first.
+export const checkTrialExpirations = onSchedule(
+  { schedule: '0 2 * * *', timeZone: 'UTC', region: 'us-central1' },
+  async () => {
+    const db = getFirestore();
+    const snap = await db.collection('households')
+      .where('subscriptionStatus', '==', 'trialing')
+      .where('trialEndsAt', '<=', Timestamp.now())
+      .get();
+
+    console.log(`[Billing] ${snap.size} trial(s) expiring`);
+    await Promise.all(snap.docs.map((d) => d.ref.update({ subscriptionStatus: 'expired' })));
+  },
+);
+
+// Starts a Lemon Squeezy hosted checkout for the caller's household and
+// returns the URL to redirect to. storeId/variantId live in Firestore
+// (settings/pricing) rather than hardcoded so the price can change without
+// a redeploy; the API key is a secret since it can create real charges.
+export const createCheckoutUrl = onCall(
+  { region: 'us-central1', secrets: ['LEMON_SQUEEZY_API_KEY'] },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
+
+    const { householdId } = (request.data || {}) as { householdId?: string };
+    if (!householdId) throw new HttpsError('invalid-argument', 'householdId is required.');
+
+    const db = getFirestore();
+    const callerSnap = await db.collection('users').doc(request.auth.uid).get();
+    const caller = callerSnap.data();
+    if (!caller || caller.role !== 'parent' || caller.householdId !== householdId) {
+      throw new HttpsError('permission-denied', 'Only a parent in this household can manage billing.');
+    }
+
+    const pricingSnap = await db.collection('settings').doc('pricing').get();
+    const pricing = pricingSnap.data() as { lemonSqueezyStoreId?: string; lemonSqueezyVariantId?: string } | undefined;
+    const apiKey = process.env.LEMON_SQUEEZY_API_KEY;
+    if (!pricing?.lemonSqueezyStoreId || !pricing?.lemonSqueezyVariantId || !apiKey) {
+      throw new HttpsError('failed-precondition', 'Billing isn\'t set up yet — please try again soon.');
+    }
+
+    const res = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.api+json',
+        'Content-Type': 'application/vnd.api+json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        data: {
+          type: 'checkouts',
+          attributes: {
+            checkout_data: { custom: { householdId } },
+            product_options: { redirect_url: 'https://app.home-anchor.org' },
+          },
+          relationships: {
+            store: { data: { type: 'stores', id: pricing.lemonSqueezyStoreId } },
+            variant: { data: { type: 'variants', id: pricing.lemonSqueezyVariantId } },
+          },
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText);
+      console.error('[Billing] Checkout creation failed:', res.status, text);
+      throw new HttpsError('internal', 'Could not start checkout. Please try again.');
+    }
+
+    const body = await res.json() as { data?: { attributes?: { url?: string } } };
+    const url = body?.data?.attributes?.url;
+    if (!url) throw new HttpsError('internal', 'Could not start checkout. Please try again.');
+
+    return { url };
+  },
+);
+
+function mapLemonSqueezyStatus(status: string): SubscriptionStatus | null {
+  switch (status) {
+    case 'active':
+    case 'on_trial':
+      return 'active';
+    case 'past_due':
+    case 'unpaid':
+    case 'paused':
+      return 'past_due';
+    case 'cancelled':
+      return 'cancelled';
+    case 'expired':
+      return 'expired';
+    default:
+      return null;
+  }
+}
+
+interface LemonSqueezyWebhookPayload {
+  meta?: { event_name?: string; custom_data?: { householdId?: string } };
+  data?: {
+    id?: string;
+    attributes?: {
+      status?: string;
+      customer_id?: number;
+      renews_at?: string | null;
+    };
+  };
+}
+
+// Keeps household.subscriptionStatus in sync with Lemon Squeezy. Verifies
+// the request actually came from Lemon Squeezy via the HMAC signature they
+// send (see https://docs.lemonsqueezy.com/help/webhooks/signing-requests) —
+// this endpoint is public, so that check is the only thing stopping anyone
+// on the internet from granting themselves a free subscription.
+export const lemonSqueezyWebhook = onRequest(
+  { region: 'us-central1', secrets: ['LEMON_SQUEEZY_WEBHOOK_SECRET'] },
+  async (request, response) => {
+    const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
+    const signatureHeader = request.get('X-Signature') || '';
+    if (!secret || !request.rawBody) {
+      console.error('[Billing] Webhook secret not configured or rawBody missing');
+      response.status(500).send('Webhook not configured');
+      return;
+    }
+
+    const digest = crypto.createHmac('sha256', secret).update(request.rawBody).digest('hex');
+    const digestBuf = Buffer.from(digest, 'utf8');
+    const signatureBuf = Buffer.from(signatureHeader, 'utf8');
+    const isValid = digestBuf.length === signatureBuf.length && crypto.timingSafeEqual(digestBuf, signatureBuf);
+    if (!isValid) {
+      console.error('[Billing] Webhook signature mismatch');
+      response.status(401).send('Invalid signature');
+      return;
+    }
+
+    const payload = request.body as LemonSqueezyWebhookPayload;
+    const eventName = payload.meta?.event_name;
+    const householdId = payload.meta?.custom_data?.householdId;
+    const attrs = payload.data?.attributes;
+
+    if (!householdId || !attrs) {
+      console.log('[Billing] Webhook missing householdId/attributes, ignoring:', eventName);
+      response.status(200).send('ignored');
+      return;
+    }
+
+    // subscription_expired/cancelled map directly from the event itself — more reliable
+    // than the status field, since 'cancelled' subscriptions report status 'cancelled'
+    // right up until ends_at, which is exactly the grace period we want to preserve.
+    const mappedStatus =
+      eventName === 'subscription_expired' ? 'expired' :
+      eventName === 'subscription_cancelled' ? 'cancelled' :
+      mapLemonSqueezyStatus(attrs.status || '');
+
+    if (!mappedStatus) {
+      console.log('[Billing] Unhandled status, ignoring:', eventName, attrs.status);
+      response.status(200).send('ignored');
+      return;
+    }
+
+    const db = getFirestore();
+    const householdRef = db.collection('households').doc(householdId);
+    if (!(await householdRef.get()).exists) {
+      console.error('[Billing] Webhook referenced unknown household:', householdId);
+      response.status(200).send('household not found');
+      return;
+    }
+
+    await householdRef.update({
+      subscriptionStatus: mappedStatus,
+      currentPeriodEnd: attrs.renews_at ? Timestamp.fromDate(new Date(attrs.renews_at)) : null,
+      lemonSqueezy: {
+        customerId: attrs.customer_id ?? null,
+        subscriptionId: payload.data?.id ? Number(payload.data.id) : null,
+      },
+    });
+
+    console.log(`[Billing] ${eventName} → household ${householdId} is now ${mappedStatus}`);
+    response.status(200).send('ok');
+  },
+);
+
+// ── Display pricing (FX rates) ───────────────────────────────────────────────
+//
+// Actual billing always happens in USD via Lemon Squeezy — these rates are
+// only ever used to show an approximate local-currency price on the paywall,
+// never to charge anyone, so a daily refresh from a free rate API is plenty.
+
+const FX_DISPLAY_CURRENCIES = ['ZAR', 'GBP', 'EUR'];
+
+export const refreshFxRates = onSchedule(
+  { schedule: '0 3 * * *', timeZone: 'UTC', region: 'us-central1' },
+  async () => {
+    const res = await fetch(`https://api.frankfurter.app/latest?from=USD&to=${FX_DISPLAY_CURRENCIES.join(',')}`);
+    if (!res.ok) {
+      console.error('[FX] Frankfurter API failed:', res.status, await res.text().catch(() => ''));
+      return;
+    }
+
+    const body = await res.json() as { rates?: Record<string, number> };
+    if (!body.rates) {
+      console.error('[FX] Frankfurter API returned no rates');
+      return;
+    }
+
+    await getFirestore().collection('settings').doc('fxRates').set({
+      base: 'USD',
+      rates: body.rates,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    console.log('[FX] Refreshed rates:', body.rates);
   },
 );

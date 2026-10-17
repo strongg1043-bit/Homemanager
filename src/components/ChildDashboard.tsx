@@ -9,6 +9,7 @@ import WalletLedger from './WalletLedger';
 import SuggestFeature from './SuggestFeature';
 import PushNotificationCard from './PushNotificationCard';
 import HouseholdSetup from './HouseholdSetup';
+import SubscriptionPaywall from './SubscriptionPaywall';
 import ChildWelcomeScreen from './ChildWelcomeScreen';
 import NotificationBell from './NotificationBell';
 import AuditTrailDrawer from './AuditTrailDrawer';
@@ -273,6 +274,10 @@ export default function ChildDashboard({ profile }: Props) {
         </motion.div>
       </div>
     );
+  }
+
+  if (household?.subscriptionStatus === 'expired') {
+    return <SubscriptionPaywall variant="child" household={household} profile={profile} />;
   }
 
   // Onboarding task — pinned at the top until completed/approved

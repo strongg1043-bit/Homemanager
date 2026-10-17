@@ -84,7 +84,11 @@ service cloud.firestore {
       // Limit enforced: prevents bulk enumeration. Invite-code lookups use /inviteCodes instead.
       allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 1);
       allow delete: if isAdmin();
-      allow create: if isSignedIn() && incoming().createdBy == request.auth.uid;
+      // Subscription fields are server-managed only (trial-init trigger, expiry sweep,
+      // Lemon Squeezy webhook) — a household creator may never set them directly.
+      allow create: if isSignedIn() && incoming().createdBy == request.auth.uid &&
+        !('subscriptionStatus' in incoming()) && !('trialEndsAt' in incoming()) &&
+        !('currentPeriodEnd' in incoming()) && !('lemonSqueezy' in incoming());
 
       allow update: if (
         // Parent updates household settings / members
@@ -260,19 +264,16 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
-    // --- Donation Events ---
-    match /donationEvents/{eid} {
-      allow read: if isAdmin();
-      allow create: if isSignedIn();
-    }
-
     // --- Global Settings ---
     match /settings/{sid} {
       // 'adminAccess' is developer-managed only — block ALL client reads and writes so the
       // admin email list is never exposed to a signed-in user. isAdmin()'s own get() call is
       // a privileged rules-engine read and is unaffected by this restriction.
+      // 'pricing' and 'fxRates' are written only by Cloud Functions (Admin SDK bypasses rules) —
+      // a client could otherwise corrupt the price/exchange-rate numbers shown to every family.
       allow read: if sid != 'adminAccess' && isSignedIn();
-      allow write: if sid != 'adminAccess' && isSignedIn() && getUser(request.auth.uid).role == 'parent';
+      allow write: if sid != 'adminAccess' && sid != 'pricing' && sid != 'fxRates' &&
+        isSignedIn() && getUser(request.auth.uid).role == 'parent';
     }
 
     // --- Email Templates ---
