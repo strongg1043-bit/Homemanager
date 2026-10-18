@@ -5,7 +5,7 @@ import { Household, UserProfile, RewardItem } from '../types';
 import { createNotification } from '../lib/notifications';
 import { sendCashoutRequestEmail } from '../lib/email';
 import { motion, AnimatePresence } from 'motion/react';
-import { Gift, Banknote, CheckCircle2, Info, Loader2, ArrowRight } from 'lucide-react';
+import { Gift, Banknote, CheckCircle2, Info, Loader2 } from 'lucide-react';
 
 interface RedeemRewardsProps {
   household: Household;
@@ -13,14 +13,25 @@ interface RedeemRewardsProps {
   members?: UserProfile[];
 }
 
+// Both a reward redemption and a cash-out spend points and create a Redemption
+// record with the same pending → approved → paid lifecycle — the only real
+// difference is whether the amount is fixed (a reward) or chosen by the child
+// (cash). One confirmation modal covers both, keyed by this union.
+type SpendTarget = { type: 'reward'; reward: RewardItem } | { type: 'cash' } | null;
+
 export default function RedeemRewards({ household, profile, members = [] }: RedeemRewardsProps) {
-  const [confirmingReward, setConfirmingReward] = useState<RewardItem | null>(null);
-  const [cashAmount, setCashAmount] = useState<number>(0);
-  const [confirmingCash, setConfirmingCash] = useState(false);
+  const [spendTarget, setSpendTarget] = useState<SpendTarget>(null);
+  const [cashAmount, setCashAmount] = useState<number>(household.minCashOut);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
 
-  const handleRedeem = async (reward: RewardItem) => {
+  const openCashOut = () => {
+    setCashAmount(household.minCashOut);
+    setError('');
+    setSpendTarget({ type: 'cash' });
+  };
+
+  const handleRedeemReward = async (reward: RewardItem) => {
     setIsProcessing(true);
     setError('');
     try {
@@ -58,7 +69,7 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
         tx.update(userRef, { totalPoints: increment(-reward.pointCost) });
       });
 
-      setConfirmingReward(null);
+      setSpendTarget(null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg === 'Insufficient balance' ? 'Not enough points for this reward.' : 'Redemption failed. Please try again.');
@@ -108,8 +119,7 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
         tx.update(userRef, { totalPoints: increment(-safeAmount) });
       });
 
-      setConfirmingCash(false);
-      setCashAmount(minCashOut);
+      setSpendTarget(null);
 
       // Notify parents
       const parents = members.filter(m => m.role === 'parent');
@@ -133,6 +143,9 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
     }
   };
 
+  const safePoints = Math.max(0, profile.totalPoints ?? 0);
+  const canCashOut = household.cashOutEnabled && safePoints >= household.minCashOut;
+
   return (
     <div className="space-y-12">
       {/* Points Summary Header */}
@@ -143,7 +156,7 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
           </div>
           <div>
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest">Available Balance</h2>
-            <div className="text-2xl font-black text-slate-900">{Math.max(0, profile.totalPoints ?? 0)} pts = {household.currency}{Math.max(0, profile.totalPoints ?? 0)}</div>
+            <div className="text-2xl font-black text-slate-900">{safePoints} pts = {household.currency}{safePoints}</div>
           </div>
         </div>
         <div className="mt-4 flex items-start gap-2 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-3">
@@ -154,14 +167,14 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
         </div>
       </div>
 
-      {/* Rewards Grid */}
+      {/* Spend grid — rewards and cash-out live side by side as the same kind of tile */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-slate-900">Reward Store</h3>
-          <span className="text-xs text-slate-500 font-medium">{household.rewardStore.length} rewards available</span>
+          <h3 className="text-xl font-bold text-slate-900">Spend Your Points</h3>
+          <span className="text-xs text-slate-500 font-medium">{household.rewardStore.length} reward{household.rewardStore.length === 1 ? '' : 's'} available</span>
         </div>
 
-        {household.rewardStore.length === 0 ? (
+        {household.rewardStore.length === 0 && !household.cashOutEnabled ? (
           <div className="p-12 text-center bg-white border-2 border-dashed border-slate-200 rounded-3xl">
             <Gift className="mx-auto text-slate-200 mb-4" size={48} />
             <p className="text-slate-400 font-medium">No rewards added by parent yet.</p>
@@ -171,7 +184,7 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
             {household.rewardStore.map((reward) => {
               const canAfford = profile.totalPoints >= reward.pointCost;
               return (
-                <div 
+                <div
                   key={reward.id}
                   className={`bg-white p-6 rounded-3xl border transition-all ${
                     canAfford ? 'border-slate-200 shadow-lg shadow-slate-100' : 'border-slate-100 opacity-60'
@@ -186,16 +199,16 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">Points</div>
                     </div>
                   </div>
-                  
+
                   <h4 className="text-lg font-bold text-slate-900 mb-1">{reward.title}</h4>
                   <p className="text-xs text-slate-400 mb-6">Value: {household.currencyName} {reward.pointCost}</p>
 
                   <button
                     disabled={!canAfford}
-                    onClick={() => setConfirmingReward(reward)}
+                    onClick={() => { setError(''); setSpendTarget({ type: 'reward', reward }); }}
                     className={`w-full py-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                      canAfford 
-                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100 hover:bg-emerald-700 active:scale-95' 
+                      canAfford
+                        ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100 hover:bg-emerald-700 active:scale-95'
                         : 'bg-slate-100 text-slate-400'
                     }`}
                   >
@@ -205,154 +218,108 @@ export default function RedeemRewards({ household, profile, members = [] }: Rede
                 </div>
               );
             })}
+
+            {household.cashOutEnabled && (
+              <div
+                className={`p-6 rounded-3xl border transition-all ${
+                  canCashOut ? 'border-indigo-200 bg-indigo-50/40 shadow-lg shadow-indigo-100' : 'border-slate-100 opacity-60'
+                }`}
+              >
+                <div className="flex justify-between items-start mb-6">
+                  <div className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
+                    <Banknote size={20} />
+                  </div>
+                </div>
+
+                <h4 className="text-lg font-bold text-slate-900 mb-1">Cash Out</h4>
+                <p className="text-xs text-slate-400 mb-6">
+                  {canCashOut ? `Choose your own amount · Min ${household.minCashOut} pts` : `Need ${household.minCashOut} pts minimum`}
+                </p>
+
+                <button
+                  disabled={!canCashOut}
+                  onClick={openCashOut}
+                  className={`w-full py-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                    canCashOut
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 hover:bg-indigo-700 active:scale-95'
+                      : 'bg-slate-100 text-slate-400'
+                  }`}
+                >
+                  {!canCashOut && <Info size={14} />}
+                  Cash Out
+                </button>
+              </div>
+            )}
           </div>
         )}
       </section>
 
-      {/* Cash out section */}
-      {household.cashOutEnabled && (
-        <section className="bg-indigo-600 p-8 rounded-[2rem] text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-8 -mb-8 blur-xl" />
-          
-          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="space-y-4 text-center md:text-left flex-1">
-              <div className="flex items-center gap-2 text-indigo-200 font-bold tracking-widest text-xs uppercase">
-                <Banknote size={16} /> Earn Real Cash
-              </div>
-              <h3 className="text-3xl font-black">Trade Points for Cash</h3>
-              <p className="text-indigo-100 text-sm max-w-sm">
-                Cash out your earned points for real {household.currencyName}s.
-                Your parent will pay you in cash and upload proof.
-              </p>
-            </div>
-
-            <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl w-full max-w-xs border border-white/20">
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs font-bold text-indigo-100 uppercase">
-                    <span>Amount Pts</span>
-                    <span>Min: {household.minCashOut} pts</span>
-                  </div>
-                  <input
-                    type="number"
-                    value={cashAmount || ''}
-                    onChange={(e) => setCashAmount(Number(e.target.value))}
-                    placeholder={`Min ${household.minCashOut}`}
-                    className="w-full bg-white/10 border border-white/30 rounded-2xl px-4 py-4 outline-none focus:ring-2 focus:ring-white transition-all text-xl font-bold placeholder:text-white/30"
-                  />
-                </div>
-
-                <div className="flex items-center justify-center gap-4 py-2 border-y border-white/10">
-                  <div className="text-center">
-                    <div className="text-xs font-bold opacity-70 uppercase">You Swap</div>
-                    <div className="font-black">{cashAmount || 0} pts</div>
-                  </div>
-                  <ArrowRight size={20} className="text-white/40" />
-                  <div className="text-center">
-                    <div className="text-xs font-bold opacity-70 uppercase">You Get</div>
-                    <div className="font-black text-emerald-400">{household.currency}{cashAmount || 0}</div>
-                  </div>
-                </div>
-
-                <button
-                  disabled={cashAmount < household.minCashOut || cashAmount > profile.totalPoints}
-                  onClick={() => setConfirmingCash(true)}
-                  className="w-full py-4 bg-white text-indigo-600 font-black rounded-2xl shadow-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
-                >
-                  Request Cash Out
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Reward Confirmation Modal */}
+      {/* Spend confirmation modal — one shape for both a fixed-cost reward and a chosen cash amount */}
       <AnimatePresence>
-        {confirmingReward && (
+        {spendTarget && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white p-8 rounded-[2rem] w-full max-w-sm shadow-2xl relative overflow-hidden"
             >
-              <div className="absolute top-0 left-0 w-full h-2 bg-indigo-600" />
+              <div className={`absolute top-0 left-0 w-full h-2 ${spendTarget.type === 'reward' ? 'bg-indigo-600' : 'bg-emerald-600'}`} />
               <div className="text-center space-y-6">
-                <div className="p-4 bg-indigo-50 text-indigo-600 rounded-3xl w-fit mx-auto">
-                  <Gift size={48} />
+                <div className={`p-4 rounded-3xl w-fit mx-auto ${spendTarget.type === 'reward' ? 'bg-indigo-50 text-indigo-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                  {spendTarget.type === 'reward' ? <Gift size={48} /> : <Banknote size={48} />}
                 </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-black text-slate-800">Redeem Reward?</h3>
-                  <p className="text-slate-500 font-medium">
-                    Spend <span className="font-bold text-indigo-600">{confirmingReward.pointCost} pts ({household.currency}{confirmingReward.pointCost})</span> on <br />
-                    <span className="text-slate-900 font-bold block mt-1">"{confirmingReward.title}"?</span>
-                  </p>
-                </div>
-                {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
-                <div className="flex flex-col gap-3">
-                  <button
-                    disabled={isProcessing}
-                    onClick={() => handleRedeem(confirmingReward)}
-                    className="w-full py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-100 active:scale-95 transition-all flex items-center justify-center"
-                  >
-                    {isProcessing ? <Loader2 className="animate-spin" /> : 'Confirm Redemption'}
-                  </button>
-                  <button
-                    disabled={isProcessing}
-                    onClick={() => setConfirmingReward(null)}
-                    className="w-full py-4 text-slate-400 font-bold hover:text-slate-600"
-                  >
-                    Maybe Later
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
-      {/* Cash Confirmation Modal */}
-      <AnimatePresence>
-        {confirmingCash && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white p-8 rounded-[2rem] w-full max-w-sm shadow-2xl relative overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 w-full h-2 bg-emerald-600" />
-              <div className="text-center space-y-6">
-                <div className="p-4 bg-emerald-50 text-emerald-600 rounded-3xl w-fit mx-auto">
-                  <Banknote size={48} />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-black text-slate-800">Cash Out Points?</h3>
-                  <p className="text-slate-500 font-medium">
-                    Exchange <span className="font-bold text-emerald-600">{cashAmount} pts</span> for <br />
-                    <span className="text-slate-900 font-black text-xl block mt-1">{household.currency}{cashAmount}</span>
-                  </p>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase py-2 border-y border-slate-100">
-                    Your parent will be notified to pay you
-                  </p>
-                </div>
+                {spendTarget.type === 'reward' ? (
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-black text-slate-800">Redeem Reward?</h3>
+                    <p className="text-slate-500 font-medium">
+                      Spend <span className="font-bold text-indigo-600">{spendTarget.reward.pointCost} pts ({household.currency}{spendTarget.reward.pointCost})</span> on <br />
+                      <span className="text-slate-900 font-bold block mt-1">"{spendTarget.reward.title}"?</span>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <h3 className="text-2xl font-black text-slate-800">Cash Out Points?</h3>
+                    <div className="space-y-1 text-left">
+                      <div className="flex justify-between text-xs font-bold text-slate-400 uppercase">
+                        <span>Amount Pts</span>
+                        <span>Min: {household.minCashOut} · Max: {safePoints}</span>
+                      </div>
+                      <input
+                        type="number"
+                        value={cashAmount || ''}
+                        onChange={(e) => setCashAmount(Number(e.target.value))}
+                        placeholder={`Min ${household.minCashOut}`}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-4 outline-none focus:ring-2 focus:ring-emerald-500 transition-all text-xl font-bold text-center"
+                      />
+                    </div>
+                    <p className="text-slate-900 font-black text-xl">
+                      = {household.currency}{Math.min(cashAmount || 0, safePoints)}
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase py-2 border-y border-slate-100">
+                      Your parent will be notified to pay you
+                    </p>
+                  </div>
+                )}
+
                 {error && <p className="text-red-500 text-xs font-bold">{error}</p>}
                 <div className="flex flex-col gap-3">
                   <button
-                    disabled={isProcessing}
-                    onClick={handleCashOut}
-                    className="w-full py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-lg shadow-emerald-100 active:scale-95 transition-all flex items-center justify-center"
+                    disabled={isProcessing || (spendTarget.type === 'cash' && (!cashAmount || cashAmount < household.minCashOut || cashAmount > profile.totalPoints))}
+                    onClick={() => spendTarget.type === 'reward' ? handleRedeemReward(spendTarget.reward) : handleCashOut()}
+                    className={`w-full py-4 text-white font-black rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center disabled:opacity-50 ${
+                      spendTarget.type === 'reward' ? 'bg-indigo-600 shadow-indigo-100' : 'bg-emerald-600 shadow-emerald-100'
+                    }`}
                   >
-                    {isProcessing ? <Loader2 className="animate-spin" /> : 'Confirm Cash Out'}
+                    {isProcessing ? <Loader2 className="animate-spin" /> : spendTarget.type === 'reward' ? 'Confirm Redemption' : 'Confirm Cash Out'}
                   </button>
                   <button
                     disabled={isProcessing}
-                    onClick={() => setConfirmingCash(false)}
+                    onClick={() => setSpendTarget(null)}
                     className="w-full py-4 text-slate-400 font-bold hover:text-slate-600"
                   >
-                    Cancel
+                    {spendTarget.type === 'reward' ? 'Maybe Later' : 'Cancel'}
                   </button>
                 </div>
               </div>
