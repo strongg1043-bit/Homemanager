@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { db } from '../firebase';
-import { collection, query, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, Timestamp, doc, updateDoc, increment, writeBatch } from 'firebase/firestore';
 import { Task, Redemption, UserProfile } from '../types';
-import { Printer } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Printer, XCircle, Banknote, Gift, Eye } from 'lucide-react';
 
 interface Props {
   householdId: string;
@@ -10,6 +11,8 @@ interface Props {
   members: UserProfile[];
   currency: string;
   isParent: boolean;
+  /** Parent only — opens PaymentConfirmationModal for a cash/reward payout. */
+  onRequestPayment?: (redemption: Redemption) => void;
 }
 
 type DateRange = 'week' | 'month' | 'all';
@@ -66,10 +69,11 @@ function getDateBoundary(range: DateRange): Date {
   return new Date(0);
 }
 
-export default function TaskStatement({ householdId, profile, members, currency, isParent }: Props) {
+export default function TaskStatement({ householdId, profile, members, currency, isParent, onRequestPayment }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [viewingProof, setViewingProof] = useState<string | null>(null);
 
   const [dateRange, setDateRange] = useState<DateRange>('month');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
@@ -108,6 +112,22 @@ export default function TaskStatement({ householdId, profile, members, currency,
 
     return () => { unsubTasks(); unsubRed(); };
   }, [householdId]);
+
+  const handleStatusChange = async (redemption: Redemption, status: 'approved' | 'rejected') => {
+    try {
+      if (status === 'rejected') {
+        // Atomic batch: refund points + status update land together or not at all.
+        const batch = writeBatch(db);
+        batch.update(doc(db, 'users', redemption.childId), { totalPoints: increment(redemption.pointsSpent) });
+        batch.update(doc(db, 'households', householdId, 'redemptions', redemption.id), { status, approvedAt: Timestamp.now() });
+        await batch.commit();
+        return;
+      }
+      await updateDoc(doc(db, 'households', householdId, 'redemptions', redemption.id), { status, approvedAt: Timestamp.now() });
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Build & filter rows
   const rows = useMemo<Row[]>(() => {
@@ -336,10 +356,15 @@ export default function TaskStatement({ householdId, profile, members, currency,
                 ? (row.data as Task).title
                 : (row.data as Redemption).title;
 
+              const redemption = row.kind === 'redemption' ? (row.data as Redemption) : null;
+              const hasProof = !!redemption?.proofPhotoUrl;
+              const isActionable = isParent && !!redemption && (redemption.status === 'pending' || redemption.status === 'approved');
+              const isCash = redemption?.type === 'cash';
+
               return (
+                <div key={`${row.kind}-${row.data.id}-${i}`} className={rowBackground(row)}>
                 <div
-                  key={`${row.kind}-${row.data.id}-${i}`}
-                  className={`grid gap-2 px-6 py-3.5 items-center transition-colors ${isParent ? 'grid-cols-12' : 'grid-cols-11'} ${rowBackground(row)}`}
+                  className={`grid gap-2 px-6 py-3.5 items-center transition-colors ${isParent ? 'grid-cols-12' : 'grid-cols-11'}`}
                 >
                   <div className="col-span-2 text-xs text-slate-500 font-bold whitespace-nowrap">
                     {row.date.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })}
@@ -371,6 +396,55 @@ export default function TaskStatement({ householdId, profile, members, currency,
                     {pointsDisplay}
                   </div>
                 </div>
+
+                {(hasProof || isActionable) && redemption && (
+                  <div className="px-6 pb-3.5 flex items-center justify-end gap-2">
+                    {hasProof && (
+                      <button
+                        onClick={() => setViewingProof(redemption.proofPhotoUrl)}
+                        className="text-xs text-indigo-600 font-bold flex items-center gap-1 hover:underline mr-auto"
+                      >
+                        <Eye size={12} /> View proof
+                      </button>
+                    )}
+                    {isActionable && redemption.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleStatusChange(redemption, 'rejected')}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded"
+                          title="Reject"
+                        >
+                          <XCircle size={18} />
+                        </button>
+                        {isCash && onRequestPayment ? (
+                          <button
+                            onClick={() => onRequestPayment(redemption)}
+                            className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-lg flex items-center gap-1 shadow-sm"
+                          >
+                            <Banknote size={14} /> Pay Now
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleStatusChange(redemption, 'approved')}
+                            className="bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-lg shadow-sm"
+                          >
+                            Approve
+                          </button>
+                        )}
+                      </>
+                    )}
+                    {isActionable && redemption.status === 'approved' && onRequestPayment && (
+                      <button
+                        onClick={() => onRequestPayment(redemption)}
+                        className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-lg flex items-center gap-1 shadow-sm"
+                      >
+                        {isCash ? <Banknote size={14} /> : <Gift size={14} />}
+                        {isCash ? 'Mark as Paid' : 'Mark Fulfilled'}
+                      </button>
+                    )}
+                  </div>
+                )}
+                </div>
               );
             })}
           </div>
@@ -397,6 +471,28 @@ export default function TaskStatement({ householdId, profile, members, currency,
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-200 inline-block" /> Pending</span>
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-slate-200 inline-block" /> Missed</span>
       </div>
+
+      {/* Proof Photo Viewer */}
+      <AnimatePresence>
+        {viewingProof && (
+          <div className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4" onClick={() => setViewingProof(null)}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative max-w-4xl w-full max-h-[90vh] flex items-center justify-center"
+            >
+              <img src={viewingProof} alt="Full Proof" className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl" />
+              <button
+                className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md"
+                onClick={() => setViewingProof(null)}
+              >
+                <XCircle size={24} />
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

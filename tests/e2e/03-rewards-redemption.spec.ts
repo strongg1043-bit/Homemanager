@@ -47,10 +47,9 @@ test('reward redemption: parent adds reward → child redeems → parent approve
   await expect(childPage.getByText('70 pts = R70')).toBeVisible({ timeout: 10000 });
 
   // ── Parent approves and marks it fulfilled ───────────────────────────────────
+  // Approve/pay actions now live inline on the Transaction Log row itself (folded in
+  // from the old per-child WalletLedger accordion), so no extra expand step is needed.
   await parentPage.getByRole('button', { name: 'The Bank' }).click();
-  await parentPage.getByText('Review redemption requests').click();
-  // "Movie Night" appears twice (the statement grid below, and the ledger row we want) —
-  // the Approve button is unambiguous and only appears once the ledger has rendered.
   await expect(parentPage.getByRole('button', { name: 'Approve' })).toBeVisible({ timeout: 15000 });
   await parentPage.getByRole('button', { name: 'Approve' }).click();
   await expect(parentPage.getByRole('button', { name: 'Mark Fulfilled' })).toBeVisible({ timeout: 10000 });

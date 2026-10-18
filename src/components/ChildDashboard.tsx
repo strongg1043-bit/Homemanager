@@ -5,7 +5,6 @@ import { resetRecurringTasks } from '../lib/taskUtils';
 import { UserProfile, Task, Household, Redemption } from '../types';
 import ChildTaskCard from './ChildTaskCard';
 import RedeemRewards from './RedeemRewards';
-import WalletLedger from './WalletLedger';
 import SuggestFeature from './SuggestFeature';
 import PushNotificationCard from './PushNotificationCard';
 import HouseholdSetup from './HouseholdSetup';
@@ -510,9 +509,10 @@ export default function ChildDashboard({ profile }: Props) {
                 </div>
               </div>
 
-              {/* Point Ledger & Wallet */}
+              {/* Wallet balance — full transaction history lives on the Statement tab,
+                  so it isn't duplicated here as a second ledger view. */}
               <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-[2rem] flex items-center justify-center shadow-lg shadow-emerald-50">
                       <Wallet size={32} />
@@ -522,24 +522,13 @@ export default function ChildDashboard({ profile }: Props) {
                       <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Total Wallet Balance</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => setActiveTab('score')} // In a real app maybe scroll to ledger
-                    className="p-4 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
+                  <button
+                    onClick={() => setActiveTab('statement')}
+                    className="flex items-center gap-2 px-4 py-3 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all font-black text-xs uppercase tracking-widest"
                   >
-                    <History size={24} />
+                    <History size={18} /> Full Statement
                   </button>
                 </div>
-
-                {household && (
-                  <WalletLedger 
-                    householdId={household.id}
-                    childId={profile.uid}
-                    childName={profile.displayName}
-                    currency={household.currency}
-                    totalPoints={profile.totalPoints}
-                    isParent={false}
-                  />
-                )}
               </div>
 
               {/* Rewards Section */}

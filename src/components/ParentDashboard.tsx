@@ -16,7 +16,6 @@ import PaymentConfirmationModal from './PaymentConfirmationModal';
 import DisputeModal from './DisputeModal';
 import InviteMemberCard from './InviteMemberCard';
 import TaskStatement from './TaskStatement';
-import WalletLedger from './WalletLedger';
 import TaskLibrary from './TaskLibrary';
 import OnboardingWizard from './OnboardingWizard';
 import DailyQuoteCard from './DailyQuoteCard';
@@ -52,7 +51,6 @@ export default function ParentDashboard({ profile }: Props) {
   const [selectedTaskForAudit, setSelectedTaskForAudit] = useState<Task | null>(null);
   const [selectedRedemptionForAudit, setSelectedRedemptionForAudit] = useState<Redemption | null>(null);
   const [selectedRedemptionForPayment, setSelectedRedemptionForPayment] = useState<Redemption | null>(null);
-  const [expandedLedgerChildId, setExpandedLedgerChildId] = useState<string | null>(null);
   const [selectedTaskForDispute, setSelectedTaskForDispute] = useState<Task | null>(null);
   const [selectedRedemptionForDispute, setSelectedRedemptionForDispute] = useState<Redemption | null>(null);
   const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string | null>(null);
@@ -1225,36 +1223,18 @@ export default function ParentDashboard({ profile }: Props) {
                           </div>
                         )}
 
-                        {/* Pending reward/cash-out requests — approve, reject, or mark fulfilled */}
-                        <button
-                          onClick={() => setExpandedLedgerChildId(expandedLedgerChildId === child.uid ? null : child.uid)}
-                          className="w-full border-t border-slate-100 px-5 py-3 flex items-center justify-between text-xs font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-all"
-                        >
-                          <span>{expandedLedgerChildId === child.uid ? 'Hide' : 'Review'} redemption requests</span>
-                          <span>{expandedLedgerChildId === child.uid ? '▲' : '▼'}</span>
-                        </button>
-                        {expandedLedgerChildId === child.uid && (
-                          <div className="border-t border-slate-100 p-5 bg-slate-50/50">
-                            <WalletLedger
-                              householdId={household.id}
-                              childId={child.uid}
-                              childName={child.displayName}
-                              currency={household.currency}
-                              totalPoints={child.totalPoints}
-                              isParent={true}
-                              onRequestPayment={(redemption) => setSelectedRedemptionForPayment(redemption)}
-                            />
-                          </div>
-                        )}
                       </div>
                     );
                   })}
                 </div>
               )}
 
-              {/* Transaction history */}
+              {/* Transaction history — the one log, with inline approve/reject/pay actions
+                  for pending or approved redemptions (folded in from the old per-child
+                  WalletLedger accordion, which just duplicated this same data). */}
               <TaskStatement
                 householdId={household.id}
+                onRequestPayment={(redemption) => setSelectedRedemptionForPayment(redemption)}
                 profile={profile}
                 members={members}
                 currency={household.currency}
