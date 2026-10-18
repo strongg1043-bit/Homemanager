@@ -128,7 +128,7 @@ const EMPTY_FORM = {
   pointValue: 20,
   kpi: '',
   evidenceType: 'photo' as EvidenceType,
-  requiresProof: true,
+  requiresProof: false,
 };
 
 export default function TaskLibrary({ householdId, members, profile }: Props) {
@@ -388,7 +388,7 @@ export default function TaskLibrary({ householdId, members, profile }: Props) {
           onClick={() => { setForm(EMPTY_FORM); setShowAddModal(true); }}
           className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-100 hover:scale-105 transition-all"
         >
-          <Plus size={16} /> New Template
+          <Plus size={16} /> Chore Template
         </button>
       </div>
 
@@ -642,7 +642,7 @@ export default function TaskLibrary({ householdId, members, profile }: Props) {
             >
               <div className="px-4 py-4 sm:p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10 flex-shrink-0">
                 <h3 className="text-lg sm:text-xl font-black text-slate-900">
-                  {editTemplate ? 'Edit Template' : 'New Template'}
+                  {editTemplate ? 'Edit Template' : 'Chore Template'}
                 </h3>
                 <button
                   onClick={() => { setShowAddModal(false); setEditTemplate(null); setForm(EMPTY_FORM); }}
