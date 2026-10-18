@@ -47,10 +47,34 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
     try {
       const base64 = await compressToBase64Profile(file);
       setLogo(base64);
+      // Editing an existing household: persist immediately rather than waiting
+      // for "Update Profile" — a changed logo should stick the moment it's picked.
+      if (isEditing && existingData?.id) {
+        await updateDoc(doc(db, 'households', existingData.id), {
+          familyLogo: base64,
+          updatedAt: serverTimestamp(),
+        });
+      }
     } catch (err) {
       console.error(err);
+      setFormError('Failed to save the logo. Please try again.');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    setLogo(null);
+    if (isEditing && existingData?.id) {
+      try {
+        await updateDoc(doc(db, 'households', existingData.id), {
+          familyLogo: null,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.error(err);
+        setFormError('Failed to remove the logo. Please try again.');
+      }
     }
   };
 
@@ -275,9 +299,9 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
                   <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
                 </label>
                 {logo && (
-                  <button 
+                  <button
                     type="button"
-                    onClick={() => setLogo(null)}
+                    onClick={handleRemoveLogo}
                     className="absolute -top-1 -right-1 p-1.5 bg-red-500 text-white rounded-full shadow-lg"
                   >
                     <X size={12} />

@@ -821,90 +821,170 @@ interface CardProps {
 }
 
 const TemplateCard = memo(function TemplateCard({ template, children, onAssign, onEdit, onToggle, onDelete, isDecommissioned }: CardProps) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
-    <div
-      className={`bg-white rounded-[2rem] border p-6 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow group ${
-        isDecommissioned ? 'border-slate-100 opacity-60' : 'border-slate-200'
-      }`}
-    >
-      {/* Top row */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-2 ${TYPE_COLOURS[template.taskType]}`}>
+    <>
+      {/* ── Compact row (mobile only) ──────────────────────────────────────── */}
+      <div
+        className={`sm:hidden bg-white rounded-[1.1rem] border p-3 flex flex-col gap-2 ${
+          isDecommissioned ? 'border-slate-100 opacity-60' : 'border-slate-200'
+        }`}
+      >
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="flex items-center gap-2.5 text-left"
+        >
+          <span className={`w-8 h-8 flex-shrink-0 rounded-[0.65rem] flex items-center justify-center ${TYPE_COLOURS[template.taskType]}`}>
             {TYPE_ICONS[template.taskType]}
-            {TYPE_LABELS[template.taskType]}
-            {template.isStarter && (
-              <span className="ml-1 opacity-60">· Starter</span>
-            )}
+          </span>
+          <span className="flex-1 min-w-0">
+            <h3 className={`text-sm font-black text-slate-900 leading-tight truncate ${isDecommissioned ? 'line-through text-slate-400' : ''}`}>
+              {template.title}
+            </h3>
+            <span className="text-[9px] font-black uppercase tracking-tight text-slate-400">
+              {TYPE_LABELS[template.taskType]}
+              {template.isStarter && ' · Starter'}
+            </span>
+          </span>
+          <span className="text-right flex-shrink-0">
+            <div className="text-base font-black text-indigo-600 leading-none">{template.pointValue}</div>
+            <div className="text-[7px] font-black text-slate-400 uppercase tracking-widest">pts</div>
+          </span>
+          {expanded ? <ChevronUp size={14} className="text-slate-300 flex-shrink-0" /> : <ChevronDown size={14} className="text-slate-300 flex-shrink-0" />}
+        </button>
+
+        {expanded && (
+          <div className="pl-[42px] space-y-2">
+            {template.description && <p className="text-xs text-slate-400 font-medium">{template.description}</p>}
+            <div className="bg-slate-50 rounded-xl px-3 py-2">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Success Criteria</p>
+              <p className="text-[11px] font-bold text-slate-600">{template.kpi}</p>
+            </div>
           </div>
-          <h3 className={`font-black text-slate-900 leading-tight ${isDecommissioned ? 'line-through text-slate-400' : ''}`}>
-            {template.title}
-          </h3>
-          {template.description && (
-            <p className="text-xs text-slate-400 font-medium mt-1 line-clamp-2">{template.description}</p>
+        )}
+
+        <div className="flex items-center gap-1.5 pl-[42px]">
+          {!isDecommissioned ? (
+            <>
+              <button
+                onClick={onAssign}
+                disabled={children.length === 0}
+                className="flex-1 flex items-center justify-center gap-1 h-6 bg-indigo-50 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-tight disabled:opacity-40"
+              >
+                <Zap size={11} /> Assign
+              </button>
+              <button onClick={onEdit} title="Edit" className="w-6 h-6 flex items-center justify-center bg-slate-100 text-slate-500 rounded-lg">
+                <Pencil size={11} />
+              </button>
+              <button onClick={onToggle} title="Decommission" className="w-6 h-6 flex items-center justify-center bg-slate-100 text-slate-500 rounded-lg">
+                <Clock size={11} />
+              </button>
+              <button onClick={onDelete} title="Delete" className="w-6 h-6 flex items-center justify-center bg-slate-100 text-slate-400 rounded-lg">
+                <Trash2 size={11} />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={onToggle}
+                className="flex-1 flex items-center justify-center gap-1 h-6 bg-slate-100 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-tight"
+              >
+                <RefreshCw size={11} /> Reactivate
+              </button>
+              <button onClick={onDelete} title="Delete permanently" className="w-6 h-6 flex items-center justify-center bg-slate-100 text-slate-400 rounded-lg">
+                <Trash2 size={11} />
+              </button>
+            </>
           )}
         </div>
-        <div className="text-right flex-shrink-0">
-          <div className="text-2xl font-black text-indigo-600 leading-none">{template.pointValue}</div>
-          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">pts</div>
-        </div>
       </div>
 
-      {/* KPI strip */}
-      <div className="bg-slate-50 rounded-2xl px-4 py-3">
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Success Criteria</p>
-        <p className="text-xs font-bold text-slate-600 line-clamp-2">{template.kpi}</p>
-      </div>
+      {/* ── Full card (sm and up) ──────────────────────────────────────────── */}
+      <div
+        className={`hidden sm:flex bg-white rounded-[2rem] border p-6 flex-col gap-4 shadow-sm hover:shadow-md transition-shadow group ${
+          isDecommissioned ? 'border-slate-100 opacity-60' : 'border-slate-200'
+        }`}
+      >
+        {/* Top row */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-2 ${TYPE_COLOURS[template.taskType]}`}>
+              {TYPE_ICONS[template.taskType]}
+              {TYPE_LABELS[template.taskType]}
+              {template.isStarter && (
+                <span className="ml-1 opacity-60">· Starter</span>
+              )}
+            </div>
+            <h3 className={`font-black text-slate-900 leading-tight ${isDecommissioned ? 'line-through text-slate-400' : ''}`}>
+              {template.title}
+            </h3>
+            {template.description && (
+              <p className="text-xs text-slate-400 font-medium mt-1 line-clamp-2">{template.description}</p>
+            )}
+          </div>
+          <div className="text-right flex-shrink-0">
+            <div className="text-2xl font-black text-indigo-600 leading-none">{template.pointValue}</div>
+            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">pts</div>
+          </div>
+        </div>
 
-      {/* Actions */}
-      {!isDecommissioned ? (
-        <div className="flex gap-2 mt-auto">
-          <button
-            onClick={onAssign}
-            disabled={children.length === 0}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-indigo-100 disabled:opacity-40"
-          >
-            <Zap size={13} /> Quick Assign
-          </button>
-          <button
-            onClick={onEdit}
-            title="Edit"
-            className="p-2.5 bg-slate-100 text-slate-500 rounded-2xl hover:bg-indigo-50 hover:text-indigo-600 transition-all"
-          >
-            <Pencil size={15} />
-          </button>
-          <button
-            onClick={onToggle}
-            title="Decommission"
-            className="p-2.5 bg-slate-100 text-slate-500 rounded-2xl hover:bg-amber-50 hover:text-amber-600 transition-all"
-          >
-            <Clock size={15} />
-          </button>
-          <button
-            onClick={onDelete}
-            title="Delete"
-            className="p-2.5 bg-slate-100 text-slate-400 rounded-2xl hover:bg-red-50 hover:text-red-600 transition-all"
-          >
-            <Trash2 size={15} />
-          </button>
+        {/* KPI strip */}
+        <div className="bg-slate-50 rounded-2xl px-4 py-3">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Success Criteria</p>
+          <p className="text-xs font-bold text-slate-600 line-clamp-2">{template.kpi}</p>
         </div>
-      ) : (
-        <div className="flex gap-2 mt-auto">
-          <button
-            onClick={onToggle}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-slate-100 text-slate-600 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-emerald-50 hover:text-emerald-700 transition-all"
-          >
-            <RefreshCw size={13} /> Reactivate
-          </button>
-          <button
-            onClick={onDelete}
-            title="Delete permanently"
-            className="p-2.5 bg-slate-100 text-slate-400 rounded-2xl hover:bg-red-50 hover:text-red-600 transition-all"
-          >
-            <Trash2 size={15} />
-          </button>
-        </div>
-      )}
-    </div>
+
+        {/* Actions */}
+        {!isDecommissioned ? (
+          <div className="flex gap-2 mt-auto">
+            <button
+              onClick={onAssign}
+              disabled={children.length === 0}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-indigo-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-lg shadow-indigo-100 disabled:opacity-40"
+            >
+              <Zap size={13} /> Quick Assign
+            </button>
+            <button
+              onClick={onEdit}
+              title="Edit"
+              className="p-2.5 bg-slate-100 text-slate-500 rounded-2xl hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+            >
+              <Pencil size={15} />
+            </button>
+            <button
+              onClick={onToggle}
+              title="Decommission"
+              className="p-2.5 bg-slate-100 text-slate-500 rounded-2xl hover:bg-amber-50 hover:text-amber-600 transition-all"
+            >
+              <Clock size={15} />
+            </button>
+            <button
+              onClick={onDelete}
+              title="Delete"
+              className="p-2.5 bg-slate-100 text-slate-400 rounded-2xl hover:bg-red-50 hover:text-red-600 transition-all"
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2 mt-auto">
+            <button
+              onClick={onToggle}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-slate-100 text-slate-600 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-emerald-50 hover:text-emerald-700 transition-all"
+            >
+              <RefreshCw size={13} /> Reactivate
+            </button>
+            <button
+              onClick={onDelete}
+              title="Delete permanently"
+              className="p-2.5 bg-slate-100 text-slate-400 rounded-2xl hover:bg-red-50 hover:text-red-600 transition-all"
+            >
+              <Trash2 size={15} />
+            </button>
+          </div>
+        )}
+      </div>
+    </>
   );
 });

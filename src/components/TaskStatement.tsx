@@ -182,7 +182,7 @@ export default function TaskStatement({ householdId, profile, members, currency,
       <div className="print:hidden space-y-3">
 
         {/* Child selector (parent only) */}
-        {isParent && children.length > 1 && (
+        {isParent && children.length > 0 && (
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setSelectedChild('all')}
