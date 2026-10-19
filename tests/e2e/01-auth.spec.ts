@@ -16,7 +16,8 @@ test('parent can register and create a family', async ({ page }) => {
 
   // Should land on parent dashboard with nav tabs visible
   await expect(page.getByRole('button', { name: 'Review' })).toBeVisible({ timeout: 10000 });
-  await expect(page.getByRole('button', { name: 'Family' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'The Bank' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Manage' })).toBeVisible();
 });
 
 test('child can register and join a family', async ({ page }) => {

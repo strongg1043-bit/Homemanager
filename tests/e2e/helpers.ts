@@ -372,9 +372,9 @@ export async function seedTask(opts: {
   return taskId;
 }
 
-/** Read the household invite code from the parent Family tab. */
+/** Read the household invite code from the parent Manage tab. */
 export async function getInviteCode(page: Page): Promise<string> {
-  await page.getByRole('button', { name: 'Family' }).click();
+  await page.getByRole('button', { name: 'Manage' }).click();
   const codeEl = page.locator('.font-mono').first();
   await codeEl.waitFor({ state: 'visible', timeout: 15000 });
   const code = (await codeEl.textContent())?.trim() ?? '';

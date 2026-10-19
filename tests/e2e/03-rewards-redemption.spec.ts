@@ -23,7 +23,7 @@ test('reward redemption: parent adds reward → child redeems → parent approve
 
   // ── Parent adds a reward to the store ────────────────────────────────────────
   await signIn(parentPage, 'parent@test.com', 'testpass123');
-  await parentPage.getByRole('button', { name: 'Settings' }).click();
+  await parentPage.getByRole('button', { name: 'Manage' }).click();
   await parentPage.getByPlaceholder('e.g. 1hr Screen Time').waitFor({ state: 'visible', timeout: 15000 });
   // Scoped to the Add Reward form specifically — the household's Currency Settings
   // further down the same page also has an input with placeholder "50".

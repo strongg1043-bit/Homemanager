@@ -28,7 +28,7 @@ import {
   LogOut, CheckCircle, Clock, Users, Settings,
   Plus, MessageSquare, ShieldCheck, Sparkles,
   AlertCircle,
-  History, AlertTriangle, X, ClipboardList, BookOpen,
+  History, AlertTriangle, X, ClipboardList,
   Banknote, Loader2, Bell, BellRing
 } from 'lucide-react';
 
@@ -37,7 +37,7 @@ interface Props {
 }
 
 export default function ParentDashboard({ profile }: Props) {
-  const [activeTab, setActiveTab] = useState<'review' | 'family' | 'library' | 'report' | 'settings'>('review');
+  const [activeTab, setActiveTab] = useState<'review' | 'report' | 'manage'>('review');
   const [household, setHousehold] = useState<Household | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
@@ -766,22 +766,10 @@ export default function ParentDashboard({ profile }: Props) {
                 </section>
               )}
 
-            </motion.div>
-            );
-          })()}
-
-          {activeTab === 'family' && (
-            <motion.div
-              key="family"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-10"
-            >
-              {/* Children */}
-              <div>
-                <h2 className="text-3xl font-black text-slate-900 mb-2 font-sans">Family</h2>
-                <p className="text-slate-400 font-medium text-sm mb-8">Manage tasks, balances and members</p>
+              {/* ── Family — per-child progress, folded in from the old Family tab ── */}
+              <div className="pt-8 border-t border-slate-100">
+                <h2 className="text-2xl font-black text-slate-900 mb-2 font-sans">Your Family</h2>
+                <p className="text-slate-400 font-medium text-sm mb-8">Drill into any child's full task history</p>
 
                 {membersError && (
                   <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-2 text-red-600 text-sm font-bold">
@@ -1019,7 +1007,21 @@ export default function ParentDashboard({ profile }: Props) {
                 </div>
               </div>
 
-              {/* Parents */}
+            </motion.div>
+            );
+          })()}
+
+          {activeTab === 'manage' && (
+            <motion.div
+              key="manage"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-10"
+            >
+              <h2 className="text-3xl font-black text-slate-900">Manage</h2>
+
+              {/* Parents / Guardians + invites — folded in from the old Family tab */}
               {members.filter(m => m.role === 'parent').length > 0 && (
                 <div>
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Parents / Guardians</h3>
@@ -1047,7 +1049,6 @@ export default function ParentDashboard({ profile }: Props) {
                 </div>
               )}
 
-              {/* ── Invite / Code at the bottom ── */}
               <div className="pt-6 border-t border-slate-100 space-y-6">
                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Add Family Members</h3>
                 <div className="grid md:grid-cols-2 gap-6">
@@ -1084,19 +1085,23 @@ export default function ParentDashboard({ profile }: Props) {
                   )}
                 </div>
               </div>
-            </motion.div>
-          )}
 
-          {activeTab === 'settings' && (
-            <motion.div 
-              key="settings"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-10"
-            >
-              <h2 className="text-3xl font-black text-slate-900">Settings</h2>
-              
+              {/* Task Templates — folded in from the old Templates tab */}
+              {household && (
+                <div className="pt-4 border-t border-slate-100">
+                  <TaskLibrary
+                    householdId={household.id}
+                    members={members}
+                    profile={profile}
+                    currency={household.currency}
+                  />
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-slate-100">
+                <h3 className="text-xl font-black text-slate-900 mb-2">Household Settings</h3>
+              </div>
+
               <div className="space-y-6">
                   <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
                     <div className="flex items-center justify-between mb-8">
@@ -1126,22 +1131,6 @@ export default function ParentDashboard({ profile }: Props) {
                 userName={profile.displayName}
                 householdId={household?.id || ''}
                 householdName={household?.name || ''}
-              />
-            </motion.div>
-          )}
-
-          {activeTab === 'library' && household && (
-            <motion.div
-              key="library"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              <TaskLibrary
-                householdId={household.id}
-                members={members}
-                profile={profile}
-                currency={household.currency}
               />
             </motion.div>
           )}
@@ -1257,24 +1246,6 @@ export default function ParentDashboard({ profile }: Props) {
           <span className="text-[10px] font-black uppercase tracking-widest">Review</span>
         </button>
         <button
-          onClick={() => setActiveTab('family')}
-          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'family' ? 'text-indigo-600 scale-110' : 'text-slate-400 hover:text-slate-600'}`}
-        >
-          <div className={`p-2 rounded-xl ${activeTab === 'family' ? 'bg-indigo-100' : ''}`}>
-            <Users size={20} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest">Family</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('library')}
-          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'library' ? 'text-indigo-600 scale-110' : 'text-slate-400 hover:text-slate-600'}`}
-        >
-          <div className={`p-2 rounded-xl ${activeTab === 'library' ? 'bg-indigo-100' : ''}`}>
-            <BookOpen size={20} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest">Templates</span>
-        </button>
-        <button
           onClick={() => setActiveTab('report')}
           className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'report' ? 'text-indigo-600 scale-110' : 'text-slate-400 hover:text-slate-600'}`}
         >
@@ -1284,13 +1255,13 @@ export default function ParentDashboard({ profile }: Props) {
           <span className="text-[10px] font-black uppercase tracking-widest">The Bank</span>
         </button>
         <button
-          onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'settings' ? 'text-indigo-600 scale-110' : 'text-slate-400 hover:text-slate-600'}`}
+          onClick={() => setActiveTab('manage')}
+          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'manage' ? 'text-indigo-600 scale-110' : 'text-slate-400 hover:text-slate-600'}`}
         >
-          <div className={`p-2 rounded-xl ${activeTab === 'settings' ? 'bg-indigo-100' : ''}`}>
+          <div className={`p-2 rounded-xl ${activeTab === 'manage' ? 'bg-indigo-100' : ''}`}>
             <Settings size={20} />
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest">Settings</span>
+          <span className="text-[10px] font-black uppercase tracking-widest">Manage</span>
         </button>
       </nav>
 
