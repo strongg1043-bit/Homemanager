@@ -6,10 +6,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { createNotification } from '../lib/notifications';
 import { sendTaskApprovedEmail, sendTaskNeedsRetryEmail } from '../lib/email';
 import {
-  Check, X, AlertCircle, User, Calendar,
-  Image as ImageIcon, ClipboardCheck, Info,
-  Camera, Eye, ArrowRight, CornerUpLeft,
-  Sparkles, ShieldCheck, History, AlertTriangle, Trash2
+  Check, X, User,
+  ClipboardCheck,
+  Eye, ArrowRight, CornerUpLeft,
+  ShieldCheck, History, AlertTriangle, Trash2
 } from 'lucide-react';
 import { TYPE_STYLES, STATUS_LABELS } from '../lib/taskConstants';
 
@@ -18,16 +18,19 @@ interface ParentTaskCardProps {
   childName: string;
   currency: string;
   members: UserProfile[];
+  emailEnabled?: boolean;
   onViewAudit?: (task: Task) => void;
   onOpenDispute?: (task: Task) => void;
   onDelete?: (taskId: string) => void;
 }
 
 
-const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, currency, members, onViewAudit, onOpenDispute, onDelete }) => {
+const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, members, emailEnabled = true, onViewAudit, onOpenDispute, onDelete }) => {
   const [submitting, setSubmitting] = useState(false);
   const [showFullPhoto, setShowFullPhoto] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showRetryInput, setShowRetryInput] = useState(false);
+  const [retryNote, setRetryNote] = useState('');
 
   const handleApprove = async () => {
     setSubmitting(true);
@@ -51,9 +54,8 @@ const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, curren
         '✅', { taskId: task.id }
       );
 
-      // Send Email
       const child = members.find(m => m.uid === task.assignedTo);
-      if (child?.email) {
+      if (emailEnabled && child?.email) {
         sendTaskApprovedEmail(child.email, child.displayName || 'Child', task.title, task.pointValue || 0);
       }
     } catch (err) {
@@ -65,25 +67,32 @@ const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, curren
 
   const handleNeedsRetry = async () => {
     setSubmitting(true);
+    const note = retryNote.trim();
     try {
       await updateDoc(doc(db, 'households', task.householdId, 'tasks', task.id), {
         status: 'needs_retry',
         completedAt: null,
+        proofPhotoUrl: null,         // clear rejected proof so child must take a fresh photo
+        retryNote: note || null,
       });
 
       await createNotification(
         task.householdId, task.assignedTo, 'child',
         'task_needs_retry',
         'Give it another go 💪',
-        `"${task.title}" needs a little more work. Check the feedback and try again!`,
+        note
+          ? `"${task.title}" needs more work. Parent's note: "${note}"`
+          : `"${task.title}" needs a little more work. Check the feedback and try again!`,
         '💪', { taskId: task.id }
       );
 
-      // Send Email
       const child = members.find(m => m.uid === task.assignedTo);
-      if (child?.email) {
+      if (emailEnabled && child?.email) {
         sendTaskNeedsRetryEmail(child.email, child.displayName || 'Child', task.title);
       }
+
+      setShowRetryInput(false);
+      setRetryNote('');
     } catch (err) {
       console.error(err);
     } finally {
@@ -203,22 +212,58 @@ const ParentTaskCard: React.FC<ParentTaskCardProps> = ({ task, childName, curren
         {/* Action Area */}
         <div className="mt-auto pt-6 border-t border-slate-100">
           {isSubmitted ? (
-            <div className="grid grid-cols-2 gap-3">
-              <button 
-                onClick={handleNeedsRetry}
-                disabled={submitting}
-                className="py-4 bg-slate-100 text-slate-600 font-black rounded-2xl text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-50 hover:text-red-600 transition-all"
-              >
-                <CornerUpLeft size={18} /> Retry
-              </button>
-              <button 
-                onClick={handleApprove}
-                disabled={submitting}
-                className="py-4 bg-emerald-600 text-white font-black rounded-2xl text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 group"
-              >
-                <span>Approve</span>
-                <Check size={18} className="group-hover:scale-125 transition-transform" />
-              </button>
+            <div className="space-y-3">
+              {/* Retry note input — shown when parent clicks the Retry button */}
+              {showRetryInput && (
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Feedback for child (optional)
+                  </label>
+                  <textarea
+                    value={retryNote}
+                    onChange={e => setRetryNote(e.target.value)}
+                    placeholder="e.g. The bed isn't made properly — tuck in the sheets."
+                    rows={3}
+                    className="w-full bg-amber-50 border-2 border-amber-200 rounded-2xl p-3 text-sm font-bold text-slate-900 focus:border-amber-400 outline-none resize-none"
+                    autoFocus
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => { setShowRetryInput(false); setRetryNote(''); }}
+                      className="py-3 bg-slate-100 text-slate-500 font-black rounded-2xl text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleNeedsRetry}
+                      disabled={submitting}
+                      className="py-3 bg-amber-500 text-white font-black rounded-2xl text-xs uppercase tracking-widest hover:bg-amber-600 transition-all shadow-lg disabled:opacity-50"
+                    >
+                      {submitting ? 'Sending...' : 'Send Back'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!showRetryInput && (
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setShowRetryInput(true)}
+                    disabled={submitting}
+                    className="py-4 bg-slate-100 text-slate-600 font-black rounded-2xl text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-amber-50 hover:text-amber-700 transition-all"
+                  >
+                    <CornerUpLeft size={18} /> Retry
+                  </button>
+                  <button
+                    onClick={handleApprove}
+                    disabled={submitting}
+                    className="py-4 bg-emerald-600 text-white font-black rounded-2xl text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 group"
+                  >
+                    <span>Approve</span>
+                    <Check size={18} className="group-hover:scale-125 transition-transform" />
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-2xl border border-slate-100">

@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Anchor - Family Chore Management Made Fun</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 90px;
+        }
+
+        :root {
+            --navy: #1B3A5C;
+            --teal: #2E7D6B;
+            --amber: #F5A35A;
+            --linen: #F4F7FB;
+            --white: #FFFFFF;
+            --text-dark: #0F2033;
+            --text-light: #152D47;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            color: var(--text-dark);
+            background-color: var(--white);
+            line-height: 1.6;
+        }
+
+        /* Navigation */
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            background-color: var(--white);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--navy);
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-dark);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--teal);
+        }
+
+        .cta-button {
+            background-color: var(--navy);
+            color: var(--white);
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .cta-button:hover {
+            background-color: var(--text-light);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(27, 58, 92, 0.2);
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, var(--linen) 0%, var(--white) 100%);
+            padding: 4rem 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .hero-content {
+            display: flex;
+            align-items: center;
+            gap: 3rem;
+            justify-content: space-between;
+        }
+
+        .hero-text {
+            flex: 1;
+            text-align: left;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--navy);
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        /* Hero Characters */
+        .hero-characters {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .character {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .character.parent-char {
+            animation-delay: 0s;
+        }
+
+        .character.kid-char {
+            animation-delay: 0.5s;
+        }
+
+        .character.success-char {
+            animation-delay: 1s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .character-emoji {
+            font-size: 4rem;
+            display: block;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .char-label {
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            font-weight: 600;
+            margin: 0;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .char-fade {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+
+        .character-plus,
+        .character-equal {
+            font-size: 2rem;
+            color: var(--teal);
+            font-weight: 700;
+        }
+
+        .hero-highlight {
+            color: var(--amber);
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .secondary-button {
+            background-color: transparent;
+            color: var(--teal);
+            padding: 0.75rem 1.5rem;
+            border: 2px solid var(--teal);
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .secondary-button:hover {
+            background-color: var(--teal);
+            color: var(--white);
+        }
+
+        /* How It Works Section */
+        .how-it-works {
+            padding: 4rem 2rem;
+            background-color: var(--white);
+        }
+
+        .how-it-works-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .how-it-works-subtitle {
+            color: var(--text-light);
+            font-size: 1.1rem;
+            margin-top: -1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .flow-diagram {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .flow-step {
+            background-color: var(--linen);
+            border: 2px solid var(--indigo-200, #C3D1E6);
+            border-radius: 16px;
+            padding: 1.75rem 1.25rem;
+            width: 220px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .flow-step:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 24px rgba(27, 58, 92, 0.12);
+            border-color: var(--teal);
+        }
+
+        .flow-icon-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 72px;
+            height: 72px;
+            background-color: var(--white);
+            border-radius: 50%;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+
+        .flow-icon {
+            font-size: 2.2rem;
+        }
+
+        .flow-number {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background-color: var(--navy);
+            color: var(--white);
+            font-size: 0.8rem;
+            font-weight: 700;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .flow-step h3 {
+            color: var(--navy);
+            font-size: 1.15rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .flow-step p {
+            color: var(--text-light);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .flow-arrow {
+            color: var(--amber);
+            font-size: 1.75rem;
+            font-weight: 700;
+            align-self: center;
+            margin-top: 36px;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 4rem 2rem;
+            background-color: var(--linen);
+        }
+
+        .features-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--navy);
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background-color: var(--white);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transition: all 0.3s;
+            border-top: 4px solid var(--amber);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            color: var(--navy);
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        /* Benefits Section */
+        .benefits {
+            padding: 4rem 2rem;
+            background-color: var(--white);
+        }
+
+        .benefits-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .benefit-box {
+            background: linear-gradient(135deg, #E8F4F0 0%, var(--linen) 100%);
+            padding: 2rem;
+            border-radius: 12px;
+            border-left: 4px solid var(--teal);
+        }
+
+        .benefit-box h4 {
+            color: var(--navy);
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .benefit-box p {
+            color: var(--text-light);
+            font-size: 0.95rem;
+        }
+
+        /* Testimonials Section */
+        .testimonials {
+            padding: 4rem 2rem;
+            background: linear-gradient(135deg, #F0F9F7 0%, var(--linen) 100%);
+        }
+
+        .testimonials-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .testimonial-card {
+            background-color: var(--white);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border-left: 4px solid var(--amber);
+            transition: all 0.3s;
+        }
+
+        .testimonial-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+        }
+
+        .testimonial-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .testimonial-emoji {
+            font-size: 2.5rem;
+        }
+
+        .testimonial-header h4 {
+            color: var(--navy);
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .testimonial-role {
+            color: var(--teal);
+            font-size: 0.85rem;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .testimonial-text {
+            color: var(--text-light);
+            font-style: italic;
+            line-height: 1.6;
+            margin: 0;
+            font-size: 0.95rem;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            background: linear-gradient(135deg, var(--navy) 0%, var(--text-light) 100%);
+            color: var(--white);
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+
+        .cta-section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        .cta-section p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.95;
+        }
+
+        .cta-button-large {
+            background-color: var(--amber);
+            color: var(--navy);
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+            display: inline-block;
+            border: none;
+            cursor: pointer;
+        }
+
+        .cta-button-large:hover {
+            background-color: #F8AD58;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(245, 163, 90, 0.3);
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--text-dark);
+            color: var(--white);
+            text-align: center;
+            padding: 2rem;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero-content {
+                flex-direction: column;
+                gap: 2rem;
+            }
+
+            .hero-text {
+                text-align: center;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .hero-characters {
+                justify-content: center;
+            }
+
+            .character-emoji {
+                font-size: 3rem;
+            }
+
+            .section-title {
+                font-size: 1.75rem;
+            }
+
+            .flow-diagram {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .flow-step {
+                width: 100%;
+                max-width: 320px;
+            }
+
+            .flow-arrow {
+                transform: rotate(90deg);
+                margin: -0.5rem 0;
+            }
+
+            .nav-links {
+                gap: 1rem;
+                font-size: 0.9rem;
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .cta-button, .secondary-button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <a href="/" class="logo">🏠 Home Anchor</a>
+        <ul class="nav-links">
+            <li><a href="#how-it-works">How It Works</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#benefits">Benefits</a></li>
+            <li><button class="cta-button" onclick="location.href='https://app.home-anchor.org'">Launch App</button></li>
+        </ul>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1>Turn Chores Into <span class="hero-highlight">Adventures</span></h1>
+                <p>Home Anchor makes household chores fun, teaches responsibility, and brings families together—all in one app.</p>
+                <div class="hero-buttons">
+                    <button class="cta-button" onclick="location.href='https://app.home-anchor.org'">Get Started Free</button>
+                    <button class="secondary-button" onclick="document.getElementById('how-it-works').scrollIntoView({behavior: 'smooth'})">See How It Works</button>
+                </div>
+            </div>
+            <div class="hero-characters">
+                <div class="character parent-char">
+                    <span class="character-emoji" id="char-1-emoji">👩</span>
+                    <p class="char-label" id="char-1-label">Mom</p>
+                </div>
+                <div class="character-plus">+</div>
+                <div class="character kid-char">
+                    <span class="character-emoji" id="char-2-emoji">👧</span>
+                    <p class="char-label" id="char-2-label">Sofia</p>
+                </div>
+                <div class="character-equal">=</div>
+                <div class="character success-char">
+                    <span class="character-emoji" id="char-3-emoji">🏠</span>
+                    <p class="char-label" id="char-3-label">Happy Home</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="how-it-works-container">
+            <h2 class="section-title">How Home Anchor Works</h2>
+            <p class="how-it-works-subtitle">From sign-up to reward, in four simple steps.</p>
+            <div class="flow-diagram">
+                <div class="flow-step">
+                    <div class="flow-icon-wrap">
+                        <span class="flow-icon">📝</span>
+                        <span class="flow-number">1</span>
+                    </div>
+                    <h3>Register</h3>
+                    <p>Create your family account and invite parents & kids to join the household.</p>
+                </div>
+                <div class="flow-arrow">➜</div>
+                <div class="flow-step">
+                    <div class="flow-icon-wrap">
+                        <span class="flow-icon">📋</span>
+                        <span class="flow-number">2</span>
+                    </div>
+                    <h3>Allocate Task</h3>
+                    <p>Parents assign chores to kids, setting clear points and deadlines.</p>
+                </div>
+                <div class="flow-arrow">➜</div>
+                <div class="flow-step">
+                    <div class="flow-icon-wrap">
+                        <span class="flow-icon">✅</span>
+                        <span class="flow-number">3</span>
+                    </div>
+                    <h3>Child Completes Task</h3>
+                    <p>Kids get it done and mark it complete, with photo proof if needed.</p>
+                </div>
+                <div class="flow-arrow">➜</div>
+                <div class="flow-step">
+                    <div class="flow-icon-wrap">
+                        <span class="flow-icon">🎉</span>
+                        <span class="flow-number">4</span>
+                    </div>
+                    <h3>Rewarded</h3>
+                    <p>Parents approve, and points convert to real rewards kids can redeem.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="features-container">
+            <h2 class="section-title">Why Families Love Home Anchor</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📋</div>
+                    <h3>Smart Task Management</h3>
+                    <p>Create, assign, and track household chores. Keep everyone accountable and on the same page.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎁</div>
+                    <h3>Reward System</h3>
+                    <p>Earn points for completed tasks and redeem them for rewards. Make chores worth the effort!</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">👨‍👩‍👧‍👦</div>
+                    <h3>Parent & Kid Dashboards</h3>
+                    <p>Each family member gets their own view. Parents manage, kids stay motivated and engaged.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤝</div>
+                    <h3>Easy Invitations</h3>
+                    <p>Add family members with one click. Growing families? No problem. Scale as you need.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💰</div>
+                    <h3>Wallet & Ledger</h3>
+                    <p>Track earnings, spending, and savings. Teach kids financial responsibility in real-time.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚙️</div>
+                    <h3>Customizable Settings</h3>
+                    <p>Tailor rewards, tasks, and rules to fit your family. It's your household, your way.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Benefits Section -->
+    <section class="benefits" id="benefits">
+        <div class="benefits-container">
+            <h2 class="section-title">What You'll Get</h2>
+            <div class="benefits-grid">
+                <div class="benefit-box">
+                    <h4>👧 For Kids</h4>
+                    <p>Learn responsibility, earn rewards, and have fun while helping the family. Stay motivated with clear goals and instant feedback.</p>
+                </div>
+                <div class="benefit-box">
+                    <h4>👨‍👩 For Parents</h4>
+                    <p>Less nagging, more harmony. Track progress, set expectations, and celebrate wins together. Peace of mind in one app.</p>
+                </div>
+                <div class="benefit-box">
+                    <h4>👨‍👩‍👧‍👦 For Families</h4>
+                    <p>Better communication, shared goals, and quality time. Build a household culture where everyone chips in.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials">
+        <div class="testimonials-container">
+            <h2 class="section-title">Meet The Families Using Home Anchor</h2>
+            <div class="testimonials-grid">
+                <div class="testimonial-card">
+                    <div class="testimonial-header">
+                        <span class="testimonial-emoji">👨‍👩‍👧</span>
+                        <div>
+                            <h4>Sarah & Family</h4>
+                            <p class="testimonial-role">Parents of 3</p>
+                        </div>
+                    </div>
+                    <p class="testimonial-text">"My kids actually look forward to their tasks now! The rewards system keeps them motivated, and I spend way less time nagging."</p>
+                </div>
+
+                <div class="testimonial-card">
+                    <div class="testimonial-header">
+                        <span class="testimonial-emoji">👦</span>
+                        <div>
+                            <h4>Marcus</h4>
+                            <p class="testimonial-role">Age 12</p>
+                        </div>
+                    </div>
+                    <p class="testimonial-text">"I earn points for my chores and can trade them for gaming time. It's actually fair!"</p>
+                </div>
+
+                <div class="testimonial-card">
+                    <div class="testimonial-header">
+                        <span class="testimonial-emoji">👩‍👧‍👦</span>
+                        <div>
+                            <h4>Jessica & Kids</h4>
+                            <p class="testimonial-role">Single Parent</p>
+                        </div>
+                    </div>
+                    <p class="testimonial-text">"Managing everything alone is hard. This app has been a game-changer for keeping my kids accountable and engaged."</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <h2>Ready to Transform Your Household?</h2>
+        <p>Join families everywhere who've made chores fun and fair.</p>
+        <button class="cta-button-large" onclick="location.href='https://app.home-anchor.org'">Start Your Free Trial Today</button>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2026 Home Anchor. Helping families thrive together.</p>
+    </footer>
+
+    <script>
+        const heroCombos = [
+            { emoji1: '👩', label1: 'Mom',      emoji2: '👧', label2: 'Sofia',    emoji3: '🏠', label3: 'Happy Home' },
+            { emoji1: '👨', label1: 'Dad',      emoji2: '👦', label2: 'Kyle',     emoji3: '🏠', label3: 'Happy Home' },
+            { emoji1: '👫', label1: 'Parents',  emoji2: '🧒', label2: 'Children', emoji3: '👪', label3: 'Happy Family' },
+        ];
+
+        let heroComboIndex = 0;
+
+        function rotateHeroCombo() {
+            heroComboIndex = (heroComboIndex + 1) % heroCombos.length;
+            const combo = heroCombos[heroComboIndex];
+
+            const fields = [
+                ['char-1-emoji', combo.emoji1], ['char-1-label', combo.label1],
+                ['char-2-emoji', combo.emoji2], ['char-2-label', combo.label2],
+                ['char-3-emoji', combo.emoji3], ['char-3-label', combo.label3],
+            ];
+
+            fields.forEach(([id]) => document.getElementById(id).classList.add('char-fade'));
+
+            setTimeout(() => {
+                fields.forEach(([id, value]) => {
+                    const el = document.getElementById(id);
+                    el.textContent = value;
+                    el.classList.remove('char-fade');
+                });
+                setTimeout(rotateHeroCombo, 2600);
+            }, 400);
+        }
+
+        setTimeout(rotateHeroCombo, 3000);
+    </script>
+</body>
+</html>

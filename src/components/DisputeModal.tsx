@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Task, Redemption, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, AlertTriangle, Send, Loader2, 
-  MessageSquare, HelpCircle, ArrowRight
+import {
+  X, AlertTriangle, Send, Loader2,
 } from 'lucide-react';
 import { createNotification } from '../lib/notifications';
 
@@ -58,7 +57,7 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
       const householdId = task?.householdId || redemption?.householdId;
       if (!householdId) return;
 
-      const disputeRef = await addDoc(collection(db, 'households', householdId, 'disputes'), {
+      await addDoc(collection(db, 'households', householdId, 'disputes'), {
         householdId,
         taskId: task?.id || null,
         redemptionId: redemption?.id || null,
@@ -70,8 +69,6 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
         status: 'open',
         createdAt: serverTimestamp(),
       });
-
-      await updateDoc(disputeRef, { id: disputeRef.id });
 
       // Notify parents about the dispute
       const parents = members.filter(m => m.role === 'parent');
@@ -96,8 +93,8 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-[120] p-4">
-          <motion.div 
+        <div className="fixed inset-0 flex items-end sm:items-center justify-center z-[120] sm:p-4">
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -108,7 +105,7 @@ export default function DisputeModal({ isOpen, onClose, task, redemption, profil
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="relative w-full max-w-md bg-white rounded-[2rem] shadow-2xl overflow-hidden"
+            className="relative w-full sm:max-w-md bg-white rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[90vh] flex flex-col"
           >
             <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-red-600">
               <div className="flex items-center gap-3">

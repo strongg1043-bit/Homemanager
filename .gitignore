@@ -7,3 +7,16 @@ coverage/
 .env*
 !.env.example
 .claude/
+test-results/
+playwright-report/
+firestore-debug.log
+.firebase/
+functions/lib/
+
+# Android TWA (Play Store packaging) — signing key and build output never go in git
+android-twa/.gradle/
+android-twa/android.keystore
+android-twa/.keystore-credentials.txt
+android-twa/*.aab
+android-twa/*.apk
+android-twa/*.idsig

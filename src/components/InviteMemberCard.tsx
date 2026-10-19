@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { db } from '../firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
-import { sendWelcomeEmail } from '../lib/email';
-import { Mail, UserPlus, Check, Loader2, Sparkles, Send, Shield, Star } from 'lucide-react';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, doc, setDoc } from 'firebase/firestore';
+import { sendWelcomeEmail, sendChildInviteEmail } from '../lib/email';
+import { UserPlus, Check, Loader2, Sparkles, Send, Shield, Star, Gift } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface Props {
@@ -15,8 +15,11 @@ export default function InviteMemberCard({ householdId, householdName, household
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [role, setRole] = useState<'child' | 'parent'>('child');
+  const [onboardingPoints, setOnboardingPoints] = useState(50);
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const [sentName, setSentName] = useState('');
+  const [sentRole, setSentRole] = useState<'child' | 'parent'>('child');
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,9 +52,26 @@ export default function InviteMemberCard({ householdId, householdName, household
         invitedName: name
       });
 
-      // 2. Send the welcome email
-      await sendWelcomeEmail(email, name, householdName, role);
+      // 2. For child invites: save the onboarding reward to the household, then send
+      //    the specialised child invite email that prominently shows the reward.
+      //    For parent invites: send the standard welcome email.
+      if (role === 'child') {
+        await updateDoc(doc(db, 'households', householdId), {
+          onboardingTaskPoints: onboardingPoints
+        });
+        // Keep inviteCodes in sync so joining children can read the reward without household access
+        await setDoc(doc(db, 'inviteCodes', householdCode), {
+          householdId,
+          householdName,
+          onboardingTaskPoints: onboardingPoints,
+        }, { merge: true });
+        await sendChildInviteEmail(email, name, householdName, householdCode, onboardingPoints, householdName);
+      } else {
+        await sendWelcomeEmail(email, name, householdName, role, householdCode);
+      }
 
+      setSentName(name);
+      setSentRole(role);
       setStatus('success');
       setEmail('');
       setName('');
@@ -125,6 +145,35 @@ export default function InviteMemberCard({ householdId, householdName, household
             </div>
           </div>
 
+          {/* Registration reward — only shown for child invites */}
+          {role === 'child' && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl mt-0.5 shrink-0">
+                  <Gift size={18} />
+                </div>
+                <div>
+                  <p className="font-black text-emerald-900 text-sm leading-none mb-1">Registration Reward</p>
+                  <p className="text-emerald-700 text-xs font-medium leading-snug">
+                    When {name || 'your child'} registers and completes their first task, they'll earn this reward automatically. It's a great way to show them the system works!
+                  </p>
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-emerald-700 uppercase tracking-widest mb-1 block ml-1">Reward Amount (points)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="500"
+                  value={onboardingPoints}
+                  onChange={e => setOnboardingPoints(Math.min(500, Math.max(1, parseInt(e.target.value) || 1)))}
+                  className="w-full px-4 py-3 bg-white border border-emerald-300 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none font-black text-emerald-800 text-lg"
+                />
+                <p className="text-[10px] text-emerald-600 font-bold mt-1 ml-1 opacity-75">This amount will be prominently featured in the invite email</p>
+              </div>
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={status === 'sending'}
@@ -144,14 +193,14 @@ export default function InviteMemberCard({ householdId, householdName, household
         </form>
 
         {status === 'success' && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3"
+            className="mt-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-start gap-3"
           >
-            <Sparkles className="text-emerald-500" size={20} />
-            <p className="text-emerald-800 text-xs font-bold leading-tight">
-              We've sent a welcome email to {name}. They can join using your household code.
+            <Sparkles className="text-emerald-500 mt-0.5 shrink-0" size={20} />
+            <p className="text-emerald-800 text-xs font-bold leading-snug">
+              Invite sent to {sentName}! The email includes a magic link and{sentRole === 'child' ? ` shows the ${onboardingPoints} pt registration reward — a great motivator to get them signed up!` : " one tap lands them on the app with the join code already filled in."}
             </p>
           </motion.div>
         )}

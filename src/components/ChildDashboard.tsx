@@ -1,23 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
-import { doc, onSnapshot, collection, query, where, orderBy, addDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot, collection, query, where, orderBy, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { resetRecurringTasks } from '../lib/taskUtils';
 import { UserProfile, Task, Household, Redemption } from '../types';
 import ChildTaskCard from './ChildTaskCard';
 import RedeemRewards from './RedeemRewards';
-import WalletLedger from './WalletLedger';
 import SuggestFeature from './SuggestFeature';
+import PushNotificationCard from './PushNotificationCard';
 import HouseholdSetup from './HouseholdSetup';
+import SubscriptionPaywall from './SubscriptionPaywall';
+import ChildWelcomeScreen from './ChildWelcomeScreen';
 import NotificationBell from './NotificationBell';
 import AuditTrailDrawer from './AuditTrailDrawer';
 import DisputeModal from './DisputeModal';
 import InviteParentCard from './InviteParentCard';
+import TaskStatement from './TaskStatement';
 import { createNotification } from '../lib/notifications';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Sparkles, Trophy, Wallet, LogOut, CheckCircle, Clock, 
-  Users, Settings, Plus, Home, Star, Shield, 
+import {
+  Sparkles, Trophy, Wallet, LogOut, CheckCircle, Clock,
+  Settings, Plus, Home, Star, Shield,
   ChevronRight, Camera, X, Send, History, Loader2,
-  BellRing, AlertTriangle, Banknote
+  BellRing, AlertTriangle, Banknote, ClipboardList
 } from 'lucide-react';
 import { compressToBase64Profile } from '../lib/imageUtils';
 import { getFamilyColour } from '../lib/familyUtils';
@@ -27,7 +31,7 @@ interface Props {
 }
 
 export default function ChildDashboard({ profile }: Props) {
-  const [activeTab, setActiveTab] = useState<'home' | 'score' | 'settings'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'score' | 'statement' | 'settings'>('home');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [household, setHousehold] = useState<Household | null>(null);
@@ -44,9 +48,14 @@ export default function ChildDashboard({ profile }: Props) {
   const [requestReason, setRequestReason] = useState('');
   const [suggestedPoints, setSuggestedPoints] = useState(10);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [requestSuccess, setRequestSuccess] = useState(false);
   const [reminderSentId, setReminderSentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [onboardingMode, setOnboardingMode] = useState<'join' | 'setup'>('join');
+  const householdTimezoneRef = React.useRef<string>('UTC');
+  // Debounce ref — prevents resetRecurringTasks from firing on every rapid snapshot
+  const resetDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const [urlParams, setUrlParams] = useState({ code: '', email: '' });
 
   useEffect(() => {
@@ -66,6 +75,7 @@ export default function ChildDashboard({ profile }: Props) {
     const unsubHousehold = onSnapshot(doc(db, 'households', profile.householdId), (snap) => {
       if (snap.exists()) {
         setHousehold({ id: snap.id, ...snap.data() } as Household);
+        householdTimezoneRef.current = (snap.data() as any)?.timezone || 'UTC';
       } else {
         console.error("Household not found:", profile.householdId);
         setHousehold(null);
@@ -78,19 +88,35 @@ export default function ChildDashboard({ profile }: Props) {
 
     // ARCH-2: Single live query for member profiles — no N+1 getDoc calls inside household callback.
     const qMembers = query(collection(db, 'users'), where('householdId', '==', profile.householdId));
-    const unsubMembers = onSnapshot(qMembers, (snap) => {
-      setMembers(snap.docs.map(d => d.data() as UserProfile));
-    });
+    const unsubMembers = onSnapshot(
+      qMembers,
+      (snap) => { setMembers(snap.docs.map(d => d.data() as UserProfile)); },
+      (err) => { console.error('ChildDashboard members error:', err); }
+    );
 
     const qTasks = query(collection(db, 'households', profile.householdId, 'tasks'), orderBy('createdAt', 'desc'));
-    const unsubTasks = onSnapshot(qTasks, (snap) => {
-      setTasks(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task)).filter(t => t.assignedTo === profile.uid));
-    });
+    const unsubTasks = onSnapshot(
+      qTasks,
+      (snap) => {
+        const allTasks = snap.docs.map(d => ({ id: d.id, ...d.data() } as Task));
+        setTasks(allTasks.filter(t => t.assignedTo === profile.uid));
+        // Reset recurring tasks — debounced to avoid write→snapshot cascade loops
+        if (profile.householdId) {
+          if (resetDebounceRef.current) clearTimeout(resetDebounceRef.current);
+          resetDebounceRef.current = setTimeout(() => {
+            resetRecurringTasks(profile.householdId!, allTasks.filter(t => t.assignedTo === profile.uid), householdTimezoneRef.current);
+          }, 3000);
+        }
+      },
+      (err) => { console.error('ChildDashboard tasks error:', err); }
+    );
 
     const qRedemptions = query(collection(db, 'households', profile.householdId, 'redemptions'), orderBy('createdAt', 'desc'));
-    const unsubRedemptions = onSnapshot(qRedemptions, (snap) => {
-      setRedemptions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Redemption)).filter(r => r.childId === profile.uid));
-    });
+    const unsubRedemptions = onSnapshot(
+      qRedemptions,
+      (snap) => { setRedemptions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Redemption)).filter(r => r.childId === profile.uid)); },
+      (err) => { console.error('ChildDashboard redemptions error:', err); }
+    );
 
     return () => {
       unsubHousehold();
@@ -105,7 +131,11 @@ export default function ChildDashboard({ profile }: Props) {
     if (!requestTitle.trim() || !profile.householdId) return;
     setIsSubmitting(true);
     try {
-      const taskRef = await addDoc(collection(db, 'households', profile.householdId, 'tasks'), {
+      // Pre-generate the ref so id is included in the initial write — avoids a
+      // second updateDoc call that the security rules don't permit for children.
+      const taskRef = doc(collection(db, 'households', profile.householdId, 'tasks'));
+      await setDoc(taskRef, {
+        id: taskRef.id,
         householdId: profile.householdId,
         title: requestTitle.trim(),
         description: requestReason.trim(),
@@ -113,7 +143,7 @@ export default function ChildDashboard({ profile }: Props) {
         assignedToName: profile.displayName,
         pointValue: Math.min(Math.max(1, suggestedPoints || 1), 9999),
         taskType: 'adhoc_date',
-        status: 'proposed', 
+        status: 'proposed',
         kpi: 'Parent will define quality standards',
         kpiLocked: false,
         evidenceType: 'photo',
@@ -125,25 +155,30 @@ export default function ChildDashboard({ profile }: Props) {
         approvedAt: null,
         beforePhotoUrl: null,
         proofPhotoUrl: null,
-        dueDate: null
+        dueDate: null,
       });
-      await updateDoc(taskRef, { id: taskRef.id });
 
-      // Notify ALL parents
+      // Notify all parents
       const parents = members.filter(m => m.role === 'parent');
       for (const parent of parents) {
         await createNotification(
           profile.householdId, parent.uid, 'parent',
-          'task_assigned', // Using assigned as proposal for now or adding new type
+          'task_assigned',
           'New Task Proposal 💡',
           `${profile.displayName} suggested a new task: "${requestTitle.trim()}". Tap to review!`,
           '💡', { taskId: taskRef.id }
         );
       }
 
-      setShowRequestModal(false);
+      // Show success confirmation then auto-close
       setRequestTitle('');
       setRequestReason('');
+      setSuggestedPoints(10);
+      setRequestSuccess(true);
+      setTimeout(() => {
+        setRequestSuccess(false);
+        setShowRequestModal(false);
+      }, 2500);
     } catch (err) {
       console.error(err);
     } finally {
@@ -240,12 +275,35 @@ export default function ChildDashboard({ profile }: Props) {
     );
   }
 
-  const todayTasks = tasks.filter(t => 
-    (t.status === 'pending' || t.status === 'accepted' || t.status === 'needs_retry') && 
-    (t.proposedBy === 'parent' || (t.proposedBy === 'child' && t.approvedAt))
+  if (household?.subscriptionStatus === 'expired') {
+    return <SubscriptionPaywall variant="child" household={household} profile={profile} />;
+  }
+
+  // Onboarding task — pinned at the top until completed/approved
+  const onboardingTask = tasks.find(t => t.isOnboardingTask && ['pending', 'accepted', 'needs_retry', 'submitted'].includes(t.status));
+
+  // Show child welcome screen on very first login
+  if (profile.showChildOnboarding === true && household) {
+    return (
+      <ChildWelcomeScreen
+        profile={profile}
+        household={household}
+        onboardingTask={onboardingTask ?? null}
+        onDone={() => {/* profile snapshot will update showChildOnboarding → re-render */}}
+      />
+    );
+  }
+
+  // Active tasks: any task that has been activated (not still in proposal state).
+  // Includes 'submitted' so the child can see tasks awaiting parent review.
+  // Fix: proposedBy becomes null after parent approves a child proposal — must include that case.
+  // Exclude the onboarding task (shown separately above the list).
+  const todayTasks = tasks.filter(t =>
+    ['pending', 'accepted', 'needs_retry', 'submitted'].includes(t.status) && !t.isOnboardingTask
   );
-  
-  const pendingRequests = tasks.filter(t => t.proposedBy === 'child' && !t.approvedAt && t.status === 'proposed');
+
+  // Requests waiting for parent approval (child-proposed, not yet activated)
+  const pendingRequests = tasks.filter(t => t.status === 'proposed' && t.proposedBy === 'child');
 
   const trustScore = profile.trustScore || 0;
   let trustLabel = "🌱 Just getting started";
@@ -307,6 +365,43 @@ export default function ChildDashboard({ profile }: Props) {
               exit={{ opacity: 0, y: -10 }}
               className="space-y-10"
             >
+              {/* ── Onboarding welcome banner ── shown until the registration task is done */}
+              {onboardingTask && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-gradient-to-br from-indigo-600 to-emerald-600 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-indigo-100 relative overflow-hidden"
+                >
+                  {/* Decorative circles */}
+                  <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full" />
+                  <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-white/10 rounded-full" />
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="text-2xl">🎉</span>
+                      <span className="text-xs font-black uppercase tracking-widest opacity-80">Welcome to Home Anchor!</span>
+                    </div>
+                    <h3 className="text-2xl font-black leading-tight mb-2">
+                      You have a welcome reward waiting!
+                    </h3>
+                    <p className="text-sm opacity-80 font-medium mb-6 leading-snug">
+                      Your first task is ready. Complete it to claim your{' '}
+                      <strong className="opacity-100">{household?.currency}{onboardingTask.pointValue}</strong> welcome reward and show everyone you're in!
+                    </p>
+                    <ChildTaskCard
+                      task={onboardingTask}
+                      currency={household?.currency || 'R'}
+                      onUpdated={() => {}}
+                      parents={members.filter(m => m.role === 'parent')}
+                      profile={profile}
+                      onViewAudit={setSelectedTaskForAudit}
+                      onOpenDispute={setSelectedTaskForDispute}
+                      isExpanded={expandedTaskId === onboardingTask.id}
+                      onToggle={() => setExpandedTaskId(prev => prev === onboardingTask.id ? null : onboardingTask.id)}
+                    />
+                  </div>
+                </motion.div>
+              )}
+
               {/* Today's Tasks */}
               <section>
                 <div className="flex items-center justify-between mb-6">
@@ -319,22 +414,24 @@ export default function ChildDashboard({ profile }: Props) {
                   </div>
                 </div>
 
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2">
                   {todayTasks.length > 0 ? (
                     todayTasks.map(task => (
-                      <ChildTaskCard 
-                        key={task.id} 
-                        task={task} 
-                        currency={household?.currency || 'R'} 
-                        onUpdated={() => {}} 
+                      <ChildTaskCard
+                        key={task.id}
+                        task={task}
+                        currency={household?.currency || 'R'}
+                        onUpdated={() => {}}
                         parents={members.filter(m => m.role === 'parent')}
                         profile={profile}
                         onViewAudit={setSelectedTaskForAudit}
                         onOpenDispute={setSelectedTaskForDispute}
+                        isExpanded={expandedTaskId === task.id}
+                        onToggle={() => setExpandedTaskId(prev => prev === task.id ? null : task.id)}
                       />
                     ))
                   ) : (
-                    <div className="col-span-full py-20 text-center bg-white rounded-[2.5rem] border border-dashed border-slate-200">
+                    <div className="py-20 text-center bg-white rounded-[2.5rem] border border-dashed border-slate-200">
                       <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-500 shadow-lg shadow-emerald-50">
                         <Sparkles size={32} />
                       </div>
@@ -412,9 +509,10 @@ export default function ChildDashboard({ profile }: Props) {
                 </div>
               </div>
 
-              {/* Point Ledger & Wallet */}
+              {/* Wallet balance — full transaction history lives on the Statement tab,
+                  so it isn't duplicated here as a second ledger view. */}
               <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-[2rem] flex items-center justify-center shadow-lg shadow-emerald-50">
                       <Wallet size={32} />
@@ -424,24 +522,13 @@ export default function ChildDashboard({ profile }: Props) {
                       <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Total Wallet Balance</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => setActiveTab('score')} // In a real app maybe scroll to ledger
-                    className="p-4 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all"
+                  <button
+                    onClick={() => setActiveTab('statement')}
+                    className="flex items-center gap-2 px-4 py-3 bg-slate-50 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-2xl transition-all font-black text-xs uppercase tracking-widest"
                   >
-                    <History size={24} />
+                    <History size={18} /> Full Statement
                   </button>
                 </div>
-
-                {household && (
-                  <WalletLedger 
-                    householdId={household.id}
-                    childId={profile.uid}
-                    childName={profile.displayName}
-                    currency={household.currency}
-                    totalPoints={profile.totalPoints}
-                    isParent={false}
-                  />
-                )}
               </div>
 
               {/* Rewards Section */}
@@ -550,7 +637,9 @@ export default function ChildDashboard({ profile }: Props) {
                 <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Supercharged Child</p>
               </div>
 
-              <SuggestFeature 
+              <PushNotificationCard uid={profile.uid} />
+
+              <SuggestFeature
                 userId={profile.uid}
                 userName={profile.displayName}
                 householdId={household?.id || ''}
@@ -558,18 +647,38 @@ export default function ChildDashboard({ profile }: Props) {
               />
             </motion.div>
           )}
+
+          {activeTab === 'statement' && household && (
+            <motion.div
+              key="statement"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+            >
+              <h2 className="text-3xl font-black text-slate-900 mb-6">My Statement</h2>
+              <TaskStatement
+                householdId={household.id}
+                profile={profile}
+                members={members}
+                currency={household.currency}
+                isParent={false}
+              />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
-      {/* Floating Action Button */}
-      <motion.button 
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => setShowRequestModal(true)}
-        className="fixed right-6 bottom-32 w-16 h-16 bg-indigo-600 text-white rounded-3xl shadow-2xl flex items-center justify-center z-40 hover:bg-slate-900 transition-colors"
-      >
-        <Plus size={32} />
-      </motion.button>
+      {/* Floating Action Button — only on Home; on other tabs it overlaps scrolling content */}
+      {activeTab === 'home' && (
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setShowRequestModal(true)}
+          className="fixed right-6 bottom-32 w-16 h-16 bg-indigo-600 text-white rounded-3xl shadow-2xl flex items-center justify-center z-40 hover:bg-slate-900 transition-colors"
+        >
+          <Plus size={32} />
+        </motion.button>
+      )}
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-6 py-4 flex items-center justify-around z-50">
@@ -591,7 +700,16 @@ export default function ChildDashboard({ profile }: Props) {
           </div>
           <span className="text-[10px] font-black uppercase tracking-widest">My Score</span>
         </button>
-        <button 
+        <button
+          onClick={() => setActiveTab('statement')}
+          className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'statement' ? 'text-indigo-600 scale-110' : 'text-slate-400 hover:text-slate-600'}`}
+        >
+          <div className={`p-2 rounded-xl ${activeTab === 'statement' ? 'bg-indigo-100' : ''}`}>
+            <ClipboardList size={20} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest">Statement</span>
+        </button>
+        <button
           onClick={() => setActiveTab('settings')}
           className={`flex flex-col items-center gap-1 transition-all ${activeTab === 'settings' ? 'text-indigo-600 scale-110' : 'text-slate-400 hover:text-slate-600'}`}
         >
@@ -636,63 +754,90 @@ export default function ChildDashboard({ profile }: Props) {
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4"
           >
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               className="bg-white rounded-[2.5rem] w-full max-w-md p-8 shadow-2xl"
             >
-              <div className="flex items-center justify-between mb-8">
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900">Request a Task</h3>
-                  <p className="text-slate-500 font-medium">Suggest a way to earn points!</p>
-                </div>
-                <button onClick={() => setShowRequestModal(false)} className="p-2 bg-slate-50 text-slate-400 rounded-xl">
-                  <X size={20} />
-                </button>
-              </div>
+              <AnimatePresence mode="wait">
+                {requestSuccess ? (
+                  /* ── Success screen ── */
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="py-6 flex flex-col items-center text-center gap-4"
+                  >
+                    <div className="w-20 h-20 rounded-full bg-indigo-50 flex items-center justify-center">
+                      <CheckCircle size={40} className="text-indigo-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black text-slate-900 mb-1">Proposal Sent! 🎉</h3>
+                      <p className="text-slate-500 font-medium text-sm leading-relaxed">
+                        Your Anchor will review it, set the proof requirements, and let you know when it's approved.
+                      </p>
+                    </div>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">Closing automatically…</p>
+                  </motion.div>
+                ) : (
+                  /* ── Request form ── */
+                  <motion.div key="form" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <div className="flex items-center justify-between mb-8">
+                      <div>
+                        <h3 className="text-2xl font-black text-slate-900">Request a Task</h3>
+                        <p className="text-slate-500 font-medium">Suggest a way to earn points!</p>
+                      </div>
+                      <button onClick={() => setShowRequestModal(false)} className="p-2 bg-slate-50 text-slate-400 rounded-xl">
+                        <X size={20} />
+                      </button>
+                    </div>
 
-              <form onSubmit={handleRequestTask} className="space-y-6">
-                <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 shadow-indigo-100">Short Title</label>
-                  <input
-                    type="text"
-                    required
-                    value={requestTitle}
-                    onChange={(e) => setRequestTitle(e.target.value)}
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                    placeholder="e.g. Wash the car"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 shadow-indigo-100">Why should you do this?</label>
-                  <textarea
-                    value={requestReason}
-                    onChange={(e) => setRequestReason(e.target.value)}
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium h-32 resize-none"
-                    placeholder="Describe your proposal..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Suggested Reward</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={9999}
-                    value={suggestedPoints}
-                    onChange={(e) => setSuggestedPoints(Math.min(parseInt(e.target.value) || 1, 9999))}
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                  />
-                </div>
+                    <form onSubmit={handleRequestTask} className="space-y-6">
+                      <div>
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Short Title</label>
+                        <input
+                          type="text"
+                          required
+                          value={requestTitle}
+                          onChange={(e) => setRequestTitle(e.target.value)}
+                          className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                          placeholder="e.g. Wash the car"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Why should you do this?</label>
+                        <textarea
+                          value={requestReason}
+                          onChange={(e) => setRequestReason(e.target.value)}
+                          className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium h-28 resize-none"
+                          placeholder="Describe your proposal..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Suggested Reward (points)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max={9999}
+                          value={suggestedPoints}
+                          onChange={(e) => setSuggestedPoints(Math.min(parseInt(e.target.value) || 1, 9999))}
+                          className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                        />
+                      </div>
 
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 flex items-center justify-center gap-3 active:scale-95 transition-all"
-                >
-                  {isSubmitting ? <Loader2 className="animate-spin" /> : <>Send Proposal <Send size={20} /></>}
-                </button>
-              </form>
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-100 flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-60"
+                      >
+                        {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <>Send Proposal <Send size={20} /></>}
+                      </button>
+                    </form>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </motion.div>
         )}

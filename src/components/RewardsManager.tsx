@@ -3,7 +3,7 @@ import { db } from '../firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { Household, RewardItem } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Layout, Plus, Trash2, Edit2, Check, X, Gift, Info } from 'lucide-react';
+import { Plus, Trash2, Edit2, Check, X, Gift, Info } from 'lucide-react';
 
 interface RewardsManagerProps {
   household: Household;
@@ -50,14 +50,46 @@ export default function RewardsManager({ household }: RewardsManagerProps) {
     }
   };
 
+  const startEditReward = (reward: RewardItem) => {
+    setEditingId(reward.id);
+    setTitle(reward.title);
+    setPointCost(reward.pointCost);
+  };
+
+  const cancelEditReward = () => {
+    setEditingId(null);
+    setTitle('');
+    setPointCost(0);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingId || !title || pointCost <= 0) return;
+    setLoading(true);
+    try {
+      const updatedStore = household.rewardStore.map((r) =>
+        r.id === editingId ? { ...r, title: title.trim(), pointCost } : r
+      );
+      await updateDoc(doc(db, 'households', household.id), {
+        rewardStore: updatedStore
+      });
+      cancelEditReward();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
-      {/* Create Form */}
+      {/* Create / Edit Form */}
       <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <Gift className="text-indigo-600" size={20} /> Add New Reward
+          {editingId ? <Edit2 className="text-indigo-600" size={20} /> : <Gift className="text-indigo-600" size={20} />}
+          {editingId ? 'Edit Reward' : 'Add New Reward'}
         </h3>
-        <form onSubmit={handleAddReward} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form onSubmit={editingId ? handleSaveEdit : handleAddReward} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Reward Name</label>
             <input
@@ -83,12 +115,21 @@ export default function RewardsManager({ household }: RewardsManagerProps) {
                   pts = {household.currency}{pointCost || 0}
                 </div>
               </div>
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={cancelEditReward}
+                  className="bg-slate-100 text-slate-500 px-4 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-200 transition-all"
+                >
+                  <X size={18} />
+                </button>
+              )}
               <button
                 type="submit"
                 disabled={loading || !title || pointCost <= 0}
                 className="bg-indigo-600 text-white px-6 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-md active:scale-95"
               >
-                <Plus size={20} /> Add
+                {editingId ? <Check size={20} /> : <Plus size={20} />} {editingId ? 'Save' : 'Add'}
               </button>
             </div>
           </div>
@@ -143,12 +184,20 @@ export default function RewardsManager({ household }: RewardsManagerProps) {
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => setConfirmDeleteId(reward.id)}
-                        className="text-slate-300 hover:text-red-500 transition-colors p-1"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => startEditReward(reward)}
+                          className="text-slate-300 hover:text-indigo-500 transition-colors p-1"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(reward.id)}
+                          className="text-slate-300 hover:text-red-500 transition-colors p-1"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     )}
                   </div>
                   

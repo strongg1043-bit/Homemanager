@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — Home Anchor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --navy: #1B3A5C;
+            --teal: #2E7D6B;
+            --amber: #F5A35A;
+            --linen: #F4F7FB;
+            --white: #FFFFFF;
+            --text-dark: #0F2033;
+            --text-light: #152D47;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            color: var(--text-dark);
+            background-color: var(--white);
+            line-height: 1.6;
+        }
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem 5%;
+            background-color: var(--white);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .logo { font-size: 1.4rem; font-weight: 800; color: var(--navy); text-decoration: none; }
+        nav a.back { color: var(--teal); text-decoration: none; font-weight: 600; font-size: 0.95rem; }
+        main { max-width: 760px; margin: 0 auto; padding: 3rem 5% 5rem; }
+        h1 { color: var(--navy); font-size: 2.1rem; margin-bottom: 0.5rem; }
+        .updated { color: var(--text-light); opacity: 0.7; font-size: 0.9rem; margin-bottom: 2.5rem; }
+        h2 { color: var(--navy); font-size: 1.3rem; margin: 2.2rem 0 0.8rem; }
+        p, li { color: var(--text-light); font-size: 1rem; margin-bottom: 0.9rem; }
+        ul { padding-left: 1.4rem; }
+        li { margin-bottom: 0.5rem; }
+        a { color: var(--teal); }
+        .callout {
+            background: var(--linen);
+            border-left: 4px solid var(--teal);
+            border-radius: 8px;
+            padding: 1.2rem 1.4rem;
+            margin: 1.5rem 0;
+        }
+        .callout p { margin-bottom: 0; }
+        footer {
+            background-color: var(--text-dark);
+            color: var(--white);
+            text-align: center;
+            padding: 2rem;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/" class="logo">⚓ Home Anchor</a>
+        <a href="/" class="back">← Back to home</a>
+    </nav>
+
+    <main>
+        <h1>Privacy Policy</h1>
+        <p class="updated">Last updated: 6 October 2026</p>
+
+        <p>Home Anchor ("the app", "we", "us") is a family chore and allowance app built by an independent developer. This page explains what information the app collects, how it's used, and how families — including children using the app — are protected.</p>
+
+        <div class="callout">
+            <p><strong>Home Anchor is a family-managed app.</strong> A parent or guardian creates the household and invites each child by sending them a join code — a child cannot sign up on their own. The parent who creates the household controls what gets collected and can review or remove their child's data at any time by contacting us below.</p>
+        </div>
+
+        <h2>Information we collect</h2>
+        <p>When you create an account or use the app, we collect:</p>
+        <ul>
+            <li><strong>Account information:</strong> display name, email address, and role (parent or child). Passwords are handled entirely by our authentication provider (Firebase Authentication) — we never see or store your password.</li>
+            <li><strong>Profile details:</strong> an optional profile photo and avatar color, which you can remove at any time.</li>
+            <li><strong>Household data:</strong> family name, motto, logo, currency settings, and time zone, set by the parent who creates the household.</li>
+            <li><strong>Task activity:</strong> task titles, descriptions, due dates, point values, and — when a task requires it — a photo submitted as proof of completion. Photos are compressed and stored as part of the task record; they are not shared outside the household.</li>
+            <li><strong>Points and rewards:</strong> points earned and spent, reward redemptions, and cash-out requests. These are in-app virtual points only — Home Anchor does not process real payments or store payment card details.</li>
+            <li><strong>Notifications:</strong> if you turn on push notifications, we store a device token so we can send task reminders. You can turn this off at any time in your device or browser settings.</li>
+            <li><strong>Feature suggestions:</strong> anything you choose to submit through the in-app "Suggest an Improvement" form.</li>
+        </ul>
+
+        <h2>How we use this information</h2>
+        <p>We use the information above only to run the app's core features: showing tasks and rewards to the right household members, calculating points and balances, sending task and account emails (such as invites and approval confirmations), and sending push notification reminders if you've enabled them.</p>
+        <p>We do not use your data, or your child's data, for advertising. Home Anchor has no ads and no ad tracking of any kind.</p>
+
+        <h2>Who we share information with</h2>
+        <p>We use a small number of service providers to run the app, and we only share what each one needs to do its job:</p>
+        <ul>
+            <li><strong>Firebase (Google):</strong> authentication, database storage, hosting, and push notification delivery. This is where all account, household, and task data lives.</li>
+            <li><strong>EmailJS:</strong> used to send transactional emails (invites, task approvals, payment confirmations). Only the recipient's name, email address, and the email content are shared.</li>
+            <li><strong>Anthropic:</strong> used only to generate a single, generic daily inspirational quote shown to all users. No account or personal data is ever sent to Anthropic.</li>
+        </ul>
+        <p>We do not sell personal information, and we do not share it with anyone for their own marketing purposes.</p>
+
+        <h2>Children's privacy</h2>
+        <p>Home Anchor is built for parents to use with their children under direct parental supervision. A child's account can only be created by a parent, who sets up the household and invites the child. We collect only what's needed for the child to use the task and reward features described above — we don't knowingly collect more than that, and the app contains no advertising, in-app purchases, or chat features reaching outside the household.</p>
+        <p>If you are a parent and want to review, correct, or delete your child's information, contact us at the email below and we'll action it directly.</p>
+
+        <h2>Data security</h2>
+        <p>Data is encrypted in transit (HTTPS) and at rest on Google Cloud infrastructure. Access to a household's data is restricted by server-side security rules to members of that household only — no other user can read it.</p>
+
+        <h2>Your choices</h2>
+        <ul>
+            <li>You can edit or remove your profile photo, display name, and household settings at any time from within the app.</li>
+            <li>You can turn off push notifications at any time from your device or browser settings.</li>
+            <li>You can request deletion of your account or your child's account by emailing us — we'll remove the associated data within a reasonable time.</li>
+        </ul>
+
+        <h2>Changes to this policy</h2>
+        <p>If this policy changes, we'll update the date at the top of this page. Significant changes will also be noted in the app.</p>
+
+        <h2>Contact us</h2>
+        <p>Questions, data requests, or concerns about this policy can be sent to <a href="mailto:homemanagercomms@gmail.com">homemanagercomms@gmail.com</a>.</p>
+
+        <p>See also our <a href="/terms.html">Terms of Service</a>.</p>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 Home Anchor. Helping families thrive together.</p>
+    </footer>
+</body>
+</html>

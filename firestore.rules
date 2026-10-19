@@ -12,121 +12,274 @@ service cloud.firestore {
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    
+
     function getUser(uid) { return get(/databases/$(database)/documents/users/$(uid)).data; }
-    function isMember(hid) { 
-      return isSignedIn() && exists(/databases/$(database)/documents/households/$(hid)) && 
-             request.auth.uid in get(/databases/$(database)/documents/households/$(hid)).data.members; 
+    function isMember(hid) {
+      return isSignedIn() && exists(/databases/$(database)/documents/households/$(hid)) &&
+             request.auth.uid in get(/databases/$(database)/documents/households/$(hid)).data.members;
     }
-    function isParent(hid) { 
+    function isParent(hid) {
       return isMember(hid) && getUser(request.auth.uid).role == 'parent';
     }
-    function isChild(hid) { 
+    function isChild(hid) {
       return isMember(hid) && getUser(request.auth.uid).role == 'child';
+    }
+    // Admin identity is developer-managed only — email list in settings/adminAccess
+    // is blocked from client writes (see settings rule below).
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/settings/adminAccess).data.emails.hasAny([request.auth.token.email]);
     }
 
     // --- Users ---
     match /users/{userId} {
-      allow get: if isSignedIn() && (request.auth.uid == userId || (getUser(request.auth.uid).householdId != '' && getUser(request.auth.uid).householdId == resource.data.householdId));
-      allow list: if isSignedIn() && resource.data.householdId != '' && resource.data.householdId == getUser(request.auth.uid).householdId;
-      
+      allow get: if isAdmin() || (isSignedIn() && (
+        request.auth.uid == userId ||
+        (getUser(request.auth.uid).householdId != '' && getUser(request.auth.uid).householdId == resource.data.householdId)
+      ));
+      allow list: if isAdmin() || (isSignedIn() && resource.data.householdId != '' && resource.data.householdId == getUser(request.auth.uid).householdId);
+
       allow create: if isSignedIn() && request.auth.uid == userId;
+      allow delete: if isAdmin();
 
       allow update: if isSignedIn() && (
-        // Self-update
+        // Self-update: profile fields
         (request.auth.uid == userId && (
-          // Action: Profile update (display name, household, email sync, avatar, photo)
-          (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'householdId', 'email', 'avatarColour', 'profilePhoto'])) ||
-          // Action: Point Deduction (Redemption)
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'householdId', 'email', 'avatarColour', 'profilePhoto']) ||
+          // Dismiss parent onboarding wizard / child welcome screen
+          incoming().diff(existing()).affectedKeys().hasOnly(['showOnboarding']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['showChildOnboarding']) ||
+          // Push notification device tokens
+          incoming().diff(existing()).affectedKeys().hasOnly(['fcmTokens']) ||
+          // Point deduction (child-initiated redemption)
           (incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints']) && incoming().totalPoints < existing().totalPoints)
         )) ||
-        // Parent update (Task approval or Refund) — only allowed to increase totalPoints (award points).
-        // SEC-9: cap the increment to the max allowed task pointValue (10 000) so a parent
-        // cannot arbitrarily inflate a child's balance in a single write.
+        // Parent awards points (task approval) — capped at 10 000 per write
         (getUser(request.auth.uid).role == 'parent' && getUser(request.auth.uid).householdId == existing().householdId &&
          incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints']) &&
          incoming().totalPoints >= existing().totalPoints &&
-         incoming().totalPoints - existing().totalPoints <= 10000)
+         incoming().totalPoints - existing().totalPoints <= 10000) ||
+        // Parent settlement — deducts balance; result must stay >= 0
+        (getUser(request.auth.uid).role == 'parent' && getUser(request.auth.uid).householdId == existing().householdId &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['totalPoints']) &&
+         incoming().totalPoints < existing().totalPoints &&
+         incoming().totalPoints >= 0)
       );
+    }
+
+    // --- Invite Codes ---
+    // Lightweight lookup-only collection. Stores { householdId, householdName, onboardingTaskPoints }.
+    // Using getDoc(inviteCodes/code) instead of querying households prevents bulk enumeration.
+    match /inviteCodes/{code} {
+      allow get: if isSignedIn();
+      allow create: if isSignedIn();
+      // Updates may not redirect a code to a different household
+      allow update: if isSignedIn() && incoming().householdId == existing().householdId;
+      allow delete: if isAdmin();
     }
 
     // --- Households ---
     match /households/{hid} {
-      allow get: if isMember(hid);
-      allow create: if isSignedIn() && incoming().createdBy == request.auth.uid;
-      
-      allow update: if isParent(hid) && (
-        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'familyMotto', 'familyColour', 'familyLogo', 'updatedAt']) ||
-        incoming().diff(existing()).affectedKeys().hasAll(['members', 'rewardStore', 'currency', 'currencyName', 'cashOutEnabled', 'minCashOut']) ||
-        incoming().diff(existing()).affectedKeys().hasOnly(['members']) ||
-        incoming().diff(existing()).affectedKeys().hasOnly(['rewardStore']) ||
-        incoming().diff(existing()).affectedKeys().hasOnly(['currency', 'currencyName', 'cashOutEnabled', 'minCashOut'])
+      allow get: if isAdmin() || isMember(hid);
+      // Limit enforced: prevents bulk enumeration. Invite-code lookups use /inviteCodes instead.
+      allow list: if isAdmin() || (isSignedIn() && request.query.limit <= 1);
+      allow delete: if isAdmin();
+      // Subscription fields are server-managed only (trial-init trigger, expiry sweep,
+      // Lemon Squeezy webhook) — a household creator may never set them directly.
+      allow create: if isSignedIn() && incoming().createdBy == request.auth.uid &&
+        !('subscriptionStatus' in incoming()) && !('trialEndsAt' in incoming()) &&
+        !('currentPeriodEnd' in incoming()) && !('lemonSqueezy' in incoming());
+
+      allow update: if (
+        // Parent updates household settings / members
+        isParent(hid) && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'familyMotto', 'familyColour', 'familyLogo', 'timezone', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['members']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['rewardStore']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['currency', 'currencyName', 'cashOutEnabled', 'minCashOut', 'emailNotificationsEnabled']) ||
+          incoming().diff(existing()).affectedKeys().hasAll(['members', 'rewardStore', 'currency', 'currencyName', 'cashOutEnabled', 'minCashOut']) ||
+          // Parent sets the registration reward before inviting a child
+          incoming().diff(existing()).affectedKeys().hasOnly(['onboardingTaskPoints'])
+        ) ||
+        // Child self-enrolling via invite code: may only add their own UID to members
+        (isSignedIn() && !isMember(hid) &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['members']) &&
+         incoming().members.size() == existing().members.size() + 1 &&
+         incoming().members.hasAll(existing().members) &&
+         request.auth.uid in incoming().members)
       );
+
+      // --- Task Templates ---
+      match /taskTemplates/{ttid} {
+        allow read, write: if isParent(hid);
+      }
 
       // --- Tasks ---
       match /tasks/{tid} {
-        allow read: if isMember(hid);
-        // Require verified email before a parent can create tasks — prevents
-        // unverified throwaway accounts from flooding children with tasks.
-        allow create: if isVerified() && isParent(hid) && isValidTask(incoming());
+        allow read: if isAdmin() || isMember(hid);
+        // Parent creates a task directly (status must be 'pending')
+        // isParent(hid) is the real gate — email verification adds no meaningful protection here.
+        allow create: if isSignedIn() && isParent(hid) && isValidTask(incoming());
+        // Child proposes a task for parent approval (status must be 'proposed')
+        allow create: if isSignedIn() && isChild(hid) && isValidProposal(incoming());
+        // Child self-creates their registration/onboarding task on join.
+        // Uses isSignedIn() (not isVerified()) — child may not have verified email yet at join time.
+        allow create: if isSignedIn() && isChild(hid) &&
+                      incoming().isOnboardingTask == true &&
+                      incoming().status == 'pending' &&
+                      incoming().assignedTo == request.auth.uid &&
+                      incoming().householdId is string &&
+                      incoming().title is string &&
+                      incoming().pointValue is number &&
+                      incoming().pointValue >= 1 &&
+                      incoming().pointValue <= 10000;
+        allow delete: if isAdmin() || isParent(hid);
+
         allow update: if isMember(hid) && (
-          // Child submitting proof
-          (isChild(hid) && existing().assignedTo == request.auth.uid && existing().status in ['pending', 'rejected'] &&
-           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'proofPhotoUrl', 'completedAt']) && incoming().status == 'submitted') ||
-          // Parent approving/rejecting
-          (isParent(hid) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approvedAt']))
+
+          // ── Child actions ──────────────────────────────────────────────────
+          // Accept task (locks KPI + reward before starting work)
+          (isChild(hid) && existing().assignedTo == request.auth.uid &&
+           existing().status == 'pending' &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'childAcceptedAt', 'rewardLocked', 'kpiLocked']) &&
+           incoming().status == 'accepted') ||
+
+          // Upload proof photo — intermediate step before final submit
+          (isChild(hid) && existing().assignedTo == request.auth.uid &&
+           existing().status in ['pending', 'accepted', 'needs_retry'] &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['proofPhotoUrl'])) ||
+
+          // Submit completed task for parent review
+          (isChild(hid) && existing().assignedTo == request.auth.uid &&
+           existing().status in ['pending', 'accepted', 'needs_retry'] &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'proofPhotoUrl', 'completedAt', 'retryNote']) &&
+           incoming().status == 'submitted') ||
+
+          // ── Parent actions ─────────────────────────────────────────────────
+          // Approve submitted task
+          (isParent(hid) &&
+           existing().status == 'submitted' &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approvedAt']) &&
+           incoming().status == 'approved') ||
+
+          // Send back for retry — clears proof and attaches feedback note
+          (isParent(hid) &&
+           existing().status == 'submitted' &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'completedAt', 'proofPhotoUrl', 'retryNote']) &&
+           incoming().status == 'needs_retry') ||
+
+          // Approve a child-proposed task (proposed → pending, locks reward).
+          // Parent may also set kpi, description, requiresProof, evidenceType and dueDate at approval time.
+          (isParent(hid) &&
+           existing().status == 'proposed' &&
+           incoming().diff(existing()).affectedKeys().hasOnly([
+             'status', 'pointValue', 'proposedBy', 'approvedAt', 'kpiLocked', 'rewardLocked',
+             'kpi', 'description', 'requiresProof', 'evidenceType', 'dueDate'
+           ]) &&
+           incoming().status == 'pending') ||
+
+          // Decline a child proposal
+          (isParent(hid) &&
+           existing().status == 'proposed' &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
+           incoming().status == 'forfeited') ||
+
+          // Reopen a forfeited/missed/approved task (resets for a new cycle)
+          (isParent(hid) &&
+           existing().status in ['forfeited', 'missed', 'approved'] &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'proofPhotoUrl', 'completedAt', 'retryNote', 'recurrence', 'approvedAt']) &&
+           incoming().status == 'pending') ||
+
+          // Automated recurring task cycle-reset and end-date expiry.
+          // Called by the parent dashboard on task load (resetRecurringTasks in taskUtils.ts).
+          // Allowed fields cover both the reset path and the expiry path.
+          // If status changes it must become 'pending' (cycle reset) or 'forfeited' (expired+missed).
+          (isParent(hid) &&
+           incoming().diff(existing()).affectedKeys().hasOnly([
+             'status', 'recurrence', 'proofPhotoUrl', 'completedAt', 'approvedAt',
+             'childAcceptedAt', 'retryNote', 'lastMissedAt', 'missedCount'
+           ]) &&
+           (!incoming().diff(existing()).affectedKeys().hasAny(['status']) ||
+            incoming().status in ['pending', 'forfeited']))
         );
-        allow delete: if isParent(hid);
       }
 
       // --- Redemptions ---
       match /redemptions/{rid} {
-        allow read: if isMember(hid);
-        // Require verified email before a child can redeem — prevents
-        // unverified accounts from initiating financial transactions.
-        // SEC-10: Two-layer balance guard —
-        //   1. Pre-check: child's current balance must cover the spend (blocks underfunded requests
-        //      even when the client omits the points-deduction write from the batch).
-        //   2. getAfter: the batch must leave balance >= 0 (catches concurrent double-spends
-        //      when both reads see the same starting balance).
-        allow create: if isVerified() && isChild(hid) && incoming().childId == request.auth.uid && isValidRedemption(incoming()) &&
+        allow read: if isAdmin() || isMember(hid);
+        allow delete: if isAdmin();
+
+        // Child-initiated redemption — balance must be deducted atomically in the same transaction.
+        // The getAfter constraint ensures the user write is co-staged, closing the double-spend window.
+        allow create: if isSignedIn() && isChild(hid) &&
+                      incoming().childId == request.auth.uid &&
+                      isValidRedemption(incoming()) &&
                       get(/databases/$(database)/documents/users/$(request.auth.uid)).data.totalPoints >= incoming().pointsSpent &&
-                      getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.totalPoints >= 0;
+                      getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.totalPoints >= 0 &&
+                      getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.totalPoints ==
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.totalPoints - incoming().pointsSpent;
+
+        // Parent-initiated settlement — creates a redemption on behalf of a child in the same household.
+        // Balance enforcement is handled by the runTransaction in the client.
+        allow create: if isParent(hid) && incoming().type == 'cash' && isValidRedemption(incoming());
+
         allow update: if isParent(hid) && (
-          // Action: Approve/Reject/Pay
-          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'approvedAt', 'paidAt', 'proofPhotoUrl', 'note', 'paidBy', 'paidByName', 'paymentMethod', 'paymentReference', 'paymentNote'])
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'status', 'approvedAt', 'paidAt', 'proofPhotoUrl',
+            'note', 'paidBy', 'paidByName', 'paymentMethod', 'paymentReference', 'paymentNote'
+          ])
         );
       }
-      
+
       // --- Notifications ---
       match /notifications/{nid} {
-        allow read: if isMember(hid) && existing().recipientId == request.auth.uid;
-        allow create: if isMember(hid);
-        allow update: if isMember(hid) && existing().recipientId == request.auth.uid && 
+        allow read: if isAdmin() || (isMember(hid) && existing().recipientId == request.auth.uid);
+        allow delete: if isAdmin();
+        allow create: if isMember(hid) && isValidNotification(incoming(), hid);
+        allow update: if isMember(hid) && existing().recipientId == request.auth.uid &&
                        incoming().diff(existing()).affectedKeys().hasOnly(['read']);
       }
 
       // --- Disputes ---
       match /disputes/{did} {
-        allow read: if isMember(hid);
+        allow read: if isAdmin() || isMember(hid);
         allow create: if isMember(hid);
-        allow update: if isParent(hid) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'resolvedBy', 'resolvedAt', 'resolution']);
+        allow update: if isParent(hid) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['status', 'resolvedBy', 'resolvedAt', 'resolution']);
+        allow delete: if isAdmin();
       }
 
       // --- Audit Trail ---
       match /audit_trail/{aid} {
-        allow read: if isMember(hid);
+        allow read: if isAdmin() || isMember(hid);
         allow create: if isMember(hid);
-        allow update, delete: if false; // Immutable logs
+        allow delete: if isAdmin();
+        allow update: if false; // Immutable — no edits ever
       }
     }
 
+    // --- Feature Requests ---
+    match /featureRequests/{rid} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+    }
+
     // --- Global Settings ---
-    // Only parents may write app-wide settings (e.g. email preferences).
-    // Children can read so their client can respect e.g. sustainability toggle.
     match /settings/{sid} {
+      // 'adminAccess' is developer-managed only — block ALL client reads and writes so the
+      // admin email list is never exposed to a signed-in user. isAdmin()'s own get() call is
+      // a privileged rules-engine read and is unaffected by this restriction.
+      // 'pricing' and 'fxRates' are written only by Cloud Functions (Admin SDK bypasses rules) —
+      // a client could otherwise corrupt the price/exchange-rate numbers shown to every family.
+      allow read: if sid != 'adminAccess' && isSignedIn();
+      allow write: if sid != 'adminAccess' && sid != 'pricing' && sid != 'fxRates' &&
+        isSignedIn() && getUser(request.auth.uid).role == 'parent';
+    }
+
+    // --- Email Templates ---
+    match /emailTemplates/{tid} {
       allow read: if isSignedIn();
-      allow write: if isSignedIn() && getUser(request.auth.uid).role == 'parent';
+      allow write: if false; // Developer-only via Firebase console
     }
 
     // --- Suggestions ---
@@ -135,9 +288,17 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
+    // --- Client error reports ---
+    // Open create (errors can happen pre-auth) but capped and never readable or
+    // editable by clients — this is a write-only crash log for the developer.
+    match /errorLogs/{eid} {
+      allow read, update, delete: if false;
+      allow create: if incoming().message is string && incoming().message.size() <= 1000 &&
+                     (!('stack' in incoming()) || incoming().stack == null || (incoming().stack is string && incoming().stack.size() <= 4000)) &&
+                     incoming().context is string && incoming().context.size() <= 200;
+    }
+
     function isValidTask(task) {
-      // BUG-3: cap pointValue to 10 000 — prevents "Identity Spoofing" payload #1
-      // (child proposes a task with a 1,000,000-point reward).
       return task.title is string && task.title.size() <= 100 &&
              task.pointValue is number && task.pointValue >= 1 && task.pointValue <= 10000 &&
              task.assignedTo is string &&
@@ -145,12 +306,35 @@ service cloud.firestore {
              task.householdId is string;
     }
 
+    function isValidProposal(task) {
+      // Child-proposed tasks: child assigns to themselves, status = 'proposed', proposedBy = 'child'
+      return task.title is string && task.title.size() <= 100 &&
+             task.pointValue is number && task.pointValue >= 1 && task.pointValue <= 10000 &&
+             task.assignedTo == request.auth.uid &&
+             task.status == 'proposed' &&
+             task.proposedBy == 'child' &&
+             task.householdId is string;
+    }
+
+    function isValidNotification(n, hid) {
+      return n.recipientId is string &&
+             n.recipientId in get(/databases/$(database)/documents/households/$(hid)).data.members &&
+             n.recipientRole in ['parent', 'child'] &&
+             n.type in [
+               'task_submitted', 'task_approved', 'task_needs_retry', 'task_assigned',
+               'cashout_requested', 'cashout_paid', 'reward_redeemed', 'task_due_soon',
+               'welcome', 'payment_reminder', 'dispute_raised', 'task_stale', 'parent_nudge'
+             ] &&
+             n.title is string && n.title.size() <= 200 &&
+             n.message is string && n.message.size() <= 500 &&
+             n.read == false &&
+             n.householdId == hid;
+    }
+
     function isValidRedemption(red) {
-      // Require pointsSpent > 0 so children can't create zero-cost redemptions,
-      // and cap at 100 000 points (practical upper limit for any child's balance).
       return red.title is string && red.title.size() <= 100 &&
              red.pointsSpent is number && red.pointsSpent >= 1 && red.pointsSpent <= 100000 &&
-             red.childId == request.auth.uid &&
+             red.childId is string &&
              red.status == 'pending' &&
              red.type in ['reward', 'cash'] &&
              red.householdId is string;

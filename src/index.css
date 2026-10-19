@@ -1,1 +1,49 @@
 @import "tailwindcss";
+
+/*
+ * ── Home Anchor Brand Palette ──────────────────────────────────────────
+ * Override Tailwind's indigo & purple palettes with brand colours so
+ * every existing `indigo-*` / `purple-*` class produces on-brand output
+ * without touching component files.
+ *
+ * NAVY   #1B3A5C  →  indigo-600  (primary CTA background)
+ * TEAL   #2E7D6B  →  indigo-500  (secondary accent / icons)
+ * AMBER  #F5A35A  →  purple-500  (highlight / badge)
+ * LINEN  #F7F3EE  →  indigo-50   (light background tint)
+ * ───────────────────────────────────────────────────────────────────── */
+@theme {
+  /* ── Indigo → Navy / Teal ramp ── */
+  --color-indigo-50:  #F4F7FB;
+  --color-indigo-100: #E3EAF3;
+  --color-indigo-200: #C3D1E6;
+  --color-indigo-300: #9AB4D3;
+  --color-indigo-400: #5F8BB5;
+  --color-indigo-500: #2E7D6B;   /* TEAL */
+  --color-indigo-600: #1B3A5C;   /* NAVY – primary CTA */
+  --color-indigo-700: #152D47;
+  --color-indigo-800: #0F2033;
+  --color-indigo-900: #091420;
+  --color-indigo-950: #050D15;
+
+  /* ── Purple → Amber / Warm ramp ── */
+  --color-purple-50:  #FEF9EE;
+  --color-purple-100: #FEF0D3;
+  --color-purple-200: #FCD9A0;
+  --color-purple-300: #FAC070;
+  --color-purple-400: #F8AD58;
+  --color-purple-500: #F5A35A;   /* AMBER */
+  --color-purple-600: #E08B3A;
+  --color-purple-700: #C47020;
+  --color-purple-800: #9A5515;
+
+  /* ── Violet → maps to same amber warmth ── */
+  --color-violet-50:  #FEF9EE;
+  --color-violet-100: #FEF0D3;
+  --color-violet-200: #FCD9A0;
+  --color-violet-300: #FAC070;
+  --color-violet-400: #F8AD58;
+  --color-violet-500: #F5A35A;
+  --color-violet-600: #E08B3A;
+  --color-violet-700: #C47020;
+  --color-violet-800: #9A5515;
+}

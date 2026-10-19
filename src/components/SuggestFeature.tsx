@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, limit, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Send, Lightbulb, History, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
@@ -72,7 +72,7 @@ export default function SuggestFeature({ userId, userName, householdId, househol
 
     setLoading(true);
     try {
-      const docRef = await addDoc(collection(db, 'suggestions'), {
+      await addDoc(collection(db, 'suggestions'), {
         householdId,
         userId,
         userName,
@@ -87,12 +87,6 @@ export default function SuggestFeature({ userId, userName, householdId, househol
         resolvedAt: null
       });
 
-      // We added the ID in the document object in the request, although Firestore manages it. 
-      // The request said: write { id: docRef.id, ... }. 
-      // Firestore addDoc returns a docRef, we can update it if we really need 'id' field inside, 
-      // but usually it's redundant. I will stick to the exact requirement.
-      // Wait, DocRef is available after addDoc.
-      
       setSuccess(true);
       setTitle('');
       setDescription('');
@@ -119,7 +113,7 @@ export default function SuggestFeature({ userId, userName, householdId, househol
           </div>
           <div>
             <h3 className="text-xl font-black">Suggest an Improvement</h3>
-            <p className="text-indigo-100 text-xs font-medium">Help shape the future of HomeManager</p>
+            <p className="text-indigo-100 text-xs font-medium">Help shape the future of Home Anchor</p>
           </div>
         </div>
 
