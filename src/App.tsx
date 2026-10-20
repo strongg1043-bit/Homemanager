@@ -23,7 +23,7 @@ const LoadingSpinner = () => (
     >
       <Loader2 size={48} />
     </motion.div>
-    <p className="text-slate-500 font-medium animate-pulse">Loading HomeManager...</p>
+    <p className="text-slate-500 font-medium animate-pulse">Loading Home Anchor...</p>
   </div>
 );
 

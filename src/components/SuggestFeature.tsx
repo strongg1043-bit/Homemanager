@@ -119,7 +119,7 @@ export default function SuggestFeature({ userId, userName, householdId, househol
           </div>
           <div>
             <h3 className="text-xl font-black">Suggest an Improvement</h3>
-            <p className="text-indigo-100 text-xs font-medium">Help shape the future of HomeManager</p>
+            <p className="text-indigo-100 text-xs font-medium">Help shape the future of Home Anchor</p>
           </div>
         </div>
 

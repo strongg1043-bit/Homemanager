@@ -227,7 +227,7 @@ export default function Auth() {
           </div>
         </div>
         
-        <h1 className="text-3xl font-black text-slate-900 text-center mb-1">HomeManager</h1>
+        <h1 className="text-3xl font-black text-slate-900 text-center mb-1">Home Anchor</h1>
         <p className="text-slate-500 text-center mb-8 font-medium">Empowering family teamwork</p>
 
         <div className="flex bg-slate-100 p-1 rounded-2xl mb-8">

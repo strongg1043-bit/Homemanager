@@ -1,5 +1,5 @@
 {
-  "name": "HomeManager",
+  "name": "Home Anchor",
   "description": "A production-ready household management app for parents and children to manage tasks and rewards.",
   "requestFramePermissions": [
     "camera"

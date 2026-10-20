@@ -21,12 +21,12 @@ interface EmailParams {
 function wrapEmail(body: string): string {
   return `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;color:#1f2937">
     <div style="background:#4F46E5;padding:24px;text-align:center;border-radius:12px 12px 0 0">
-      <h1 style="color:#fff;margin:0;font-size:24px">🏠 HomeManager</h1>
+      <h1 style="color:#fff;margin:0;font-size:24px">🏠 Home Anchor</h1>
     </div>
     <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
       ${body}
       <div style="margin-top:32px;padding-top:20px;border-top:1px solid #e5e7eb;text-align:center;font-size:12px;color:#9ca3af">
-        Sent by HomeManager · Empowering family teamwork
+        Sent by Home Anchor · Empowering family teamwork
       </div>
     </div>
   </div>`;
@@ -41,7 +41,7 @@ async function getSustainabilityHtml(): Promise<string> {
     return `
       <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:20px;margin-top:32px;text-align:center;font-family:Arial,sans-serif">
         <p style="font-size:20px;margin:0 0 8px">💛</p>
-        <p style="font-weight:600;margin:0 0 8px;color:#92400e">Support HomeManager</p>
+        <p style="font-weight:600;margin:0 0 8px;color:#92400e">Support Home Anchor</p>
         <p style="font-size:14px;color:#78350f;line-height:1.6;margin:0 0 12px">${sust.message || ''}</p>
         <p style="font-size:13px;color:#92400e;font-weight:500">${sust.donationDetails || ''}</p>
       </div>`;
@@ -69,7 +69,7 @@ async function sendEmail(params: EmailParams): Promise<void> {
       to_name: params.to_name,
       subject: params.subject,
       message_html: params.message_html,
-      from_name: 'HomeManager',
+      from_name: 'Home Anchor',
       reply_to: REPLY_TO,
     }, PUBLIC_KEY);
     console.log('Email sent to', params.to_email);
@@ -189,17 +189,17 @@ export async function sendWelcomeEmail(
 
   const body = template?.bodyHtml
     ? fillTemplate(template.bodyHtml, vars)
-    : `<h2 style="color:#1f2937">Welcome to HomeManager! 🏠</h2>
+    : `<h2 style="color:#1f2937">Welcome to Home Anchor! 🏠</h2>
        <p>The <strong>${familyName}</strong> household is all set up.</p>
        ${role === 'parent' 
          ? '<p>Start by creating your first task for your children — set a reward, a KPI, and let them get to work!</p>'
          : '<p>Check your tasks, complete them with photo proof, and start earning rewards!</p>'
        }
-       <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#4F46E5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Open HomeManager →</a></p>`;
+       <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#4F46E5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Open Home Anchor →</a></p>`;
 
   const subject = template?.subject
     ? fillTemplate(template.subject, vars)
-    : `🏠 Welcome to HomeManager, ${familyName}!`;
+    : `🏠 Welcome to Home Anchor, ${familyName}!`;
 
   await sendEmail({ to_email: recipientEmail, to_name: recipientName, subject, message_html: wrapEmail(body + sustHtml) });
 }
@@ -219,7 +219,7 @@ export async function sendCashoutRequestEmail(
       <p style="margin:0;font-size:20px;font-weight:700;color:#1e3a8a">${currencySymbol}${amount}</p>
       <p style="margin:4px 0 0">Awaiting your payment</p>
     </div>
-    <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#4F46E5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Review in HomeManager →</a></p>`;
+    <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#4F46E5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Review in Home Anchor →</a></p>`;
 
   await sendEmail({
     to_email: parentEmail,
@@ -238,7 +238,7 @@ export async function sendParentInviteEmail(
   const sustHtml = await getSustainabilityHtml();
   const body = `
     <h2 style="color:#1f2937">🚀 ${childName} is calling you out!</h2>
-    <p>Your child <strong>${childName}</strong> has been working hard on <strong>HomeManager</strong> and wants you to join the team!</p>
+    <p>Your child <strong>${childName}</strong> has been working hard on <strong>Home Anchor</strong> and wants you to join the team!</p>
     
     <div style="background:#fefce8;border:1px solid #fef08a;border-radius:12px;padding:24px;margin:24px 0;text-align:center">
       <p style="text-transform:uppercase;font-size:10px;font-weight:900;color:#854d0e;letter-spacing:0.1em;margin-bottom:8px">Your Household Code</p>
@@ -246,7 +246,7 @@ export async function sendParentInviteEmail(
     </div>
 
     <p style="font-style:italic;color:#4b5563;border-left:4px solid #e5e7eb;padding-left:16px;margin:24px 0">
-      "Yo! I've been grinding away on HomeManager, earning points like a legend. Time to stop the under-the-table deals and make it official. Download the app and manage me properly! 🏆"
+      "Yo! I've been grinding away on Home Anchor, earning points like a legend. Time to stop the under-the-table deals and make it official. Download the app and manage me properly! 🏆"
     </p>
 
     <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#4F46E5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Join ${householdName} →</a></p>
@@ -255,7 +255,7 @@ export async function sendParentInviteEmail(
   await sendEmail({
     to_email: parentEmail,
     to_name: 'Parent',
-    subject: `🚀 ${childName} wants you to join HomeManager!`,
+    subject: `🚀 ${childName} wants you to join Home Anchor!`,
     message_html: wrapEmail(body + sustHtml),
   });
 }

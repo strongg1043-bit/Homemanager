@@ -75,7 +75,7 @@ export default function InviteParentCard({
         recipientRole: 'parent',
         type: 'invite_parent',
         title: '💸 No more swindling me!',
-        message: `${childName} is calling you out! They've been grinding on HomeManager and want you to join officially.`,
+        message: `${childName} is calling you out! They've been grinding on Home Anchor and want you to join officially.`,
         emoji: '🚀',
         read: false,
         createdAt: serverTimestamp(),
@@ -121,7 +121,7 @@ export default function InviteParentCard({
         <div className="bg-slate-50 rounded-[1.5rem] p-5 mb-6 border border-slate-100 relative group">
           <div className="absolute -top-3 -right-3 bg-white shadow-sm border border-slate-100 rounded-full p-2 text-xs">💬</div>
           <p className="text-sm text-slate-600 font-medium italic leading-relaxed">
-            "Yo! I've been grinding away on HomeManager, earning points like a legend.
+            "Yo! I've been grinding away on Home Anchor, earning points like a legend.
             Time to stop the under-the-table deals and make it official."
           </p>
         </div>

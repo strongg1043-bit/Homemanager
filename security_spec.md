@@ -1,4 +1,4 @@
-# Security Specification - HomeManager
+# Security Specification - Home Anchor
 
 ## Data Invariants
 1. A Task must belong to a valid Household that the creator/assignee is a member of.

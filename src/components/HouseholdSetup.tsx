@@ -143,7 +143,7 @@ export default function HouseholdSetup({ profile, isEditing = false, existingDat
                 <Sparkles size={40} />
               </div>
               <h2 className="text-3xl font-black text-slate-900 mb-2">Welcome!</h2>
-              <p className="text-slate-500 font-medium tracking-tight">Let's get your family setup on HomeManager.</p>
+              <p className="text-slate-500 font-medium tracking-tight">Let's get your family setup on Home Anchor.</p>
             </div>
 
             <div className="flex bg-slate-100 p-1 rounded-2xl mb-8">
