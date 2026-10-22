@@ -185,7 +185,7 @@ export async function sendWelcomeEmail(
 ) {
   const sustHtml = await getSustainabilityHtml();
   const template = await getTemplate('welcome');
-  const vars = { familyName, childName: recipientName, parentName: recipientName, appUrl: 'https://homemanager-956389666150.us-west1.run.app' };
+  const vars = { familyName, childName: recipientName, parentName: recipientName, appUrl: 'https://www.home-anchor.org' };
 
   const body = template?.bodyHtml
     ? fillTemplate(template.bodyHtml, vars)
@@ -195,7 +195,7 @@ export async function sendWelcomeEmail(
          ? '<p>Start by creating your first task for your children — set a reward, a KPI, and let them get to work!</p>'
          : '<p>Check your tasks, complete them with photo proof, and start earning rewards!</p>'
        }
-       <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#267A6B;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Open Home Anchor →</a></p>`;
+       <p><a href="https://www.home-anchor.org" style="background:#267A6B;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Open Home Anchor →</a></p>`;
 
   const subject = template?.subject
     ? fillTemplate(template.subject, vars)
@@ -219,7 +219,7 @@ export async function sendCashoutRequestEmail(
       <p style="margin:0;font-size:20px;font-weight:700;color:#1e3a8a">${currencySymbol}${amount}</p>
       <p style="margin:4px 0 0">Awaiting your payment</p>
     </div>
-    <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#267A6B;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Review in Home Anchor →</a></p>`;
+    <p><a href="https://www.home-anchor.org" style="background:#267A6B;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Review in Home Anchor →</a></p>`;
 
   await sendEmail({
     to_email: parentEmail,
@@ -249,7 +249,7 @@ export async function sendParentInviteEmail(
       "Yo! I've been grinding away on Home Anchor, earning points like a legend. Time to stop the under-the-table deals and make it official. Download the app and manage me properly! 🏆"
     </p>
 
-    <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#267A6B;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Join ${householdName} →</a></p>
+    <p><a href="https://www.home-anchor.org" style="background:#267A6B;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Join ${householdName} →</a></p>
   `;
 
   await sendEmail({
