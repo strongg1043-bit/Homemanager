@@ -4,7 +4,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, se
 import { doc, setDoc, serverTimestamp, collection, getDocs, query, where, updateDoc, arrayUnion, writeBatch } from 'firebase/firestore';
 import { Role } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Layout, LogIn, UserPlus, Star, Shield, ArrowRight, Copy, Check, Sparkles } from 'lucide-react';
+import { LogIn, UserPlus, Star, Shield, ArrowRight, Copy, Check, Sparkles } from 'lucide-react';
 import { generateInviteCode } from '../lib/familyUtils';
 import { sendWelcomeEmail } from '../lib/email';
 
@@ -222,9 +222,7 @@ export default function Auth() {
         className="w-full max-w-lg bg-white rounded-3xl shadow-xl border border-slate-200 p-8 relative z-10"
       >
         <div className="flex justify-center mb-6">
-          <div className="p-4 bg-indigo-600 rounded-2xl text-white shadow-lg shadow-indigo-100">
-            <Layout size={32} />
-          </div>
+          <img src="/logo.png" alt="Home Anchor" className="w-16 h-16 rounded-2xl shadow-lg shadow-slate-200" />
         </div>
         
         <h1 className="text-3xl font-black text-slate-900 text-center mb-1">Home Anchor</h1>
