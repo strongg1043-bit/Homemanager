@@ -1,1 +1,16 @@
 @import "tailwindcss";
+
+/* Home Anchor brand: remap the indigo scale to the logo teal (#267A6B = 600) */
+@theme {
+  --color-indigo-50: #effaf7;
+  --color-indigo-100: #d5f2ea;
+  --color-indigo-200: #aee4d6;
+  --color-indigo-300: #7fcfbe;
+  --color-indigo-400: #4fb5a2;
+  --color-indigo-500: #339a89;
+  --color-indigo-600: #267a6b;
+  --color-indigo-700: #1f6358;
+  --color-indigo-800: #1b4f47;
+  --color-indigo-900: #18413b;
+  --color-indigo-950: #0b2724;
+}

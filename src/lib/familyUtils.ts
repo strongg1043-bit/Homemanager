@@ -8,10 +8,10 @@ export function generateInviteCode(): string {
 
 export function getFamilyColour(colour: string): string {
   const colours: Record<string, string> = {
-    indigo: '#4F46E5', emerald: '#059669', amber: '#D97706',
+    indigo: '#267A6B', emerald: '#059669', amber: '#D97706',
     rose: '#E11D48', violet: '#7C3AED', sky: '#0284C7'
   };
-  return colours[colour] || '#4F46E5';
+  return colours[colour] || '#267A6B';
 }
 
 export const COLOUR_OPTIONS = ['indigo', 'emerald', 'amber', 'rose', 'violet', 'sky'];

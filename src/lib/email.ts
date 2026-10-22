@@ -20,7 +20,7 @@ interface EmailParams {
 // Wrap body in consistent email shell
 function wrapEmail(body: string): string {
   return `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto;color:#1f2937">
-    <div style="background:#4F46E5;padding:24px;text-align:center;border-radius:12px 12px 0 0">
+    <div style="background:#267A6B;padding:24px;text-align:center;border-radius:12px 12px 0 0">
       <h1 style="color:#fff;margin:0;font-size:24px">🏠 Home Anchor</h1>
     </div>
     <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
@@ -195,7 +195,7 @@ export async function sendWelcomeEmail(
          ? '<p>Start by creating your first task for your children — set a reward, a KPI, and let them get to work!</p>'
          : '<p>Check your tasks, complete them with photo proof, and start earning rewards!</p>'
        }
-       <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#4F46E5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Open Home Anchor →</a></p>`;
+       <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#267A6B;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Open Home Anchor →</a></p>`;
 
   const subject = template?.subject
     ? fillTemplate(template.subject, vars)
@@ -219,7 +219,7 @@ export async function sendCashoutRequestEmail(
       <p style="margin:0;font-size:20px;font-weight:700;color:#1e3a8a">${currencySymbol}${amount}</p>
       <p style="margin:4px 0 0">Awaiting your payment</p>
     </div>
-    <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#4F46E5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Review in Home Anchor →</a></p>`;
+    <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#267A6B;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Review in Home Anchor →</a></p>`;
 
   await sendEmail({
     to_email: parentEmail,
@@ -249,7 +249,7 @@ export async function sendParentInviteEmail(
       "Yo! I've been grinding away on Home Anchor, earning points like a legend. Time to stop the under-the-table deals and make it official. Download the app and manage me properly! 🏆"
     </p>
 
-    <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#4F46E5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Join ${householdName} →</a></p>
+    <p><a href="https://homemanager-956389666150.us-west1.run.app" style="background:#267A6B;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;margin-top:16px">Join ${householdName} →</a></p>
   `;
 
   await sendEmail({
