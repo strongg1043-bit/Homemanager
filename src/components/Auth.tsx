@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, deleteUser, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, collection, getDocs, query, where, limit, arrayUnion, writeBatch } from 'firebase/firestore';
 import { Role } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -93,7 +93,15 @@ export default function Auth() {
   const [joinCode, setJoinCode] = useState('');
   const [parentAction, setParentAction] = useState<'create' | 'join' | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  // Recovers an error stashed by a previous Auth instance right before a forced
+  // sign-out remounted this component — see the sessionStorage note in handleSubmit's catch.
+  const [error, setError] = useState(() => {
+    try {
+      const stashed = sessionStorage.getItem('authError');
+      if (stashed) sessionStorage.removeItem('authError');
+      return stashed ?? '';
+    } catch { return ''; }
+  });
   const [inviteCode, setInviteCode] = useState('');
   const [copied, setCopied] = useState(false);
   const [resetSent, setResetSent] = useState(false);
@@ -124,6 +132,7 @@ export default function Auth() {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
         if (!role) throw new Error('Please select a role');
+        if (!parentAction) throw new Error('Please select whether you are creating or joining a family.');
 
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
@@ -147,6 +156,8 @@ export default function Auth() {
         if (parentAction === 'join') {
           // Primary: fast single-doc lookup via inviteCodes collection (no enumeration risk)
           // Fallback: limit(1) query for households created before the inviteCodes migration
+          // Reads here require isSignedIn() per firestore.rules (anti-enumeration), which is
+          // why the lookup has to happen after account creation rather than before it.
           type InviteLookup = { householdId: string; householdName?: string; onboardingTaskPoints?: number };
           let inviteLookup: InviteLookup | null = null;
 
@@ -229,9 +240,6 @@ export default function Auth() {
           if (user.email) {
             sendWelcomeEmail(user.email, displayName, familyName, role);
           }
-        } else {
-          await signOut(auth);
-          throw new Error('Please select whether you are creating or joining a family.');
         }
 
         if (role === 'child' && !isLogin) {
@@ -239,7 +247,6 @@ export default function Auth() {
         }
       }
     } catch (err: unknown) {
-      if (auth.currentUser) await signOut(auth).catch(() => {});
       const code = (err as { code?: string }).code;
       const AUTH_ERRORS: Record<string, string> = {
         'auth/invalid-credential':     'Incorrect email or password. Please try again.',
@@ -252,10 +259,23 @@ export default function Auth() {
         'auth/network-request-failed': 'Network error. Please check your connection and try again.',
         'auth/user-disabled':          'This account has been disabled. Please contact support.',
       };
-      setError(
-        (code && AUTH_ERRORS[code]) ??
-        (err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.')
-      );
+      const message = (code && AUTH_ERRORS[code]) ??
+        (err instanceof Error ? err.message : 'An unexpected error occurred. Please try again.');
+
+      // The instant createUserWithEmailAndPassword succeeds, App.tsx's onAuthStateChanged
+      // swaps this whole form out for a loading screen — so if household setup then fails
+      // (bad invite code, etc.), this component is unmounted and setError below is a no-op.
+      // Stash the message in sessionStorage so the fresh Auth instance that mounts after
+      // sign-out can recover and show it, and delete the half-created account rather than
+      // just signing out of it, so no orphaned Auth user (with no Firestore profile) is left.
+      try { sessionStorage.setItem('authError', message); } catch { /* ignore */ }
+      if (auth.currentUser && !isLogin) {
+        await deleteUser(auth.currentUser).catch(() => signOut(auth).catch(() => {}));
+      } else if (auth.currentUser) {
+        await signOut(auth).catch(() => {});
+      }
+
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -570,7 +590,7 @@ export default function Auth() {
 
                 <button
                   type="submit"
-                  disabled={loading || (!isLogin && role === 'parent' && !parentAction)}
+                  disabled={loading || (!isLogin && !!role && !parentAction)}
                   className="w-full py-4 mt-2 text-white font-black rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ backgroundColor: isLogin ? NAVY : TEAL }}
                 >

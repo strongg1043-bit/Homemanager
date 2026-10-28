@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { db, auth } from '../firebase';
 import { doc, setDoc, onSnapshot, collection, query, where, orderBy, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { resetRecurringTasks } from '../lib/taskUtils';
+import { onSnapshotWithRetry } from '../lib/firestoreUtils';
 import { UserProfile, Task, Household, Redemption } from '../types';
 import ChildTaskCard from './ChildTaskCard';
 import RedeemRewards from './RedeemRewards';
@@ -88,7 +89,7 @@ export default function ChildDashboard({ profile }: Props) {
 
     // ARCH-2: Single live query for member profiles — no N+1 getDoc calls inside household callback.
     const qMembers = query(collection(db, 'users'), where('householdId', '==', profile.householdId));
-    const unsubMembers = onSnapshot(
+    const unsubMembers = onSnapshotWithRetry(
       qMembers,
       (snap) => { setMembers(snap.docs.map(d => d.data() as UserProfile)); },
       (err) => { console.error('ChildDashboard members error:', err); }
@@ -636,6 +637,17 @@ export default function ChildDashboard({ profile }: Props) {
                 <h3 className="mt-6 text-2xl font-black text-slate-900">{profile.displayName}</h3>
                 <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mt-1">Supercharged Child</p>
               </div>
+
+              {household && members.filter(m => m.role === 'parent').length === 0 && (
+                <InviteParentCard
+                  childName={profile.displayName}
+                  childUid={profile.uid}
+                  householdId={household.id}
+                  householdCode={household.inviteCode}
+                  householdName={household.name}
+                  isOrphan={false}
+                />
+              )}
 
               <PushNotificationCard uid={profile.uid} />
 

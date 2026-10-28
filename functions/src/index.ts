@@ -329,7 +329,7 @@ export const notifyAdminOnNewHousehold = onDocumentCreated(
 
 // ── Subscription billing (Lemon Squeezy) ────────────────────────────────────
 //
-// Model: every household gets a 60-day free trial from creation. After that,
+// Model: every household gets a 30-day free trial from creation. After that,
 // subscriptionStatus must be 'active' (or still in Lemon Squeezy's own
 // cancellation grace period, i.e. 'cancelled' with ends_at in the future) or
 // the app locks. All of subscriptionStatus / trialEndsAt / currentPeriodEnd /
@@ -338,9 +338,9 @@ export const notifyAdminOnNewHousehold = onDocumentCreated(
 
 type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired';
 
-const TRIAL_LENGTH_MS = 60 * 24 * 60 * 60 * 1000; // 60 days
+const TRIAL_LENGTH_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-// Grants the 60-day trial the moment a household is created.
+// Grants the 30-day trial the moment a household is created.
 export const initializeSubscriptionTrial = onDocumentCreated(
   { document: 'households/{householdId}', region: 'us-central1' },
   async (event) => {

@@ -69,20 +69,29 @@ export default function InviteParentCard({
 
       if (!activeHouseholdId) throw new Error('No household ID');
 
-      // 2. Internal Notification for parents in the household
-      await addDoc(collection(db, 'households', activeHouseholdId, 'notifications'), {
-        householdId: activeHouseholdId,
-        recipientRole: 'parent',
-        type: 'invite_parent',
-        title: '💸 No more swindling me!',
-        message: `${childName} is calling you out! They've been grinding on Home Anchor and want you to join officially.`,
-        emoji: '🚀',
-        read: false,
-        createdAt: serverTimestamp(),
-        invitedEmail: email,
-        fromChildId: childUid,
-        fromChildName: childName,
-      });
+      // 2. Internal notification for each existing parent in the household.
+      //    Notifications are read-gated by recipientId, so if no parent exists yet
+      //    (a brand-new "orphan" household), there's no one to notify in-app — the
+      //    email invite below is what actually reaches the new parent.
+      const parentsSnap = await getDocs(
+        query(collection(db, 'users'), where('householdId', '==', activeHouseholdId), where('role', '==', 'parent'))
+      );
+      await Promise.all(parentsSnap.docs.map(parentDoc =>
+        addDoc(collection(db, 'households', activeHouseholdId, 'notifications'), {
+          householdId: activeHouseholdId,
+          recipientId: parentDoc.id,
+          recipientRole: 'parent',
+          type: 'invite_parent',
+          title: '💸 No more swindling me!',
+          message: `${childName} is calling you out! They've been grinding on Home Anchor and want you to join officially.`,
+          emoji: '🚀',
+          read: false,
+          createdAt: serverTimestamp(),
+          invitedEmail: email,
+          fromChildId: childUid,
+          fromChildName: childName,
+        })
+      ));
 
       // 3. Real Email Trigger
       sendParentInviteEmail(email, childName, activeHouseholdCode, activeHouseholdName);

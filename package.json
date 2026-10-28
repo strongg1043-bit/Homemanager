@@ -11,7 +11,8 @@
     "lint": "tsc --noEmit",
     "test:e2e": "firebase --config firebase.test.json emulators:exec --only auth,firestore --project homemanager-c409a \"npx playwright test\"",
     "test:e2e:ui": "firebase --config firebase.test.json emulators:exec --only auth,firestore --project homemanager-c409a \"npx playwright test --ui\"",
-    "deploy:safe": "npm run build && npm run test:e2e && firebase deploy"
+    "test:rules": "firebase emulators:exec --only firestore --project homemanager-c409a \"tsx tests/rules/run.ts\"",
+    "deploy:safe": "npm run build && npm run test:e2e && npm run test:rules && firebase deploy"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@firebase/eslint-plugin-security-rules": "^0.0.1",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.14.0",
     "@types/react": "^19.2.15",
