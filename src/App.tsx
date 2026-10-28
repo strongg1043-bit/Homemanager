@@ -3,16 +3,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, deleteUser, User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { UserProfile } from './types';
 import Auth from './components/Auth';
-import ParentDashboard from './components/ParentDashboard';
-import ChildDashboard from './components/ChildDashboard';
+import InstallAppBanner from './components/InstallAppBanner';
 import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, AlertTriangle } from 'lucide-react';
+import { lazyWithReload } from './lib/lazyWithReload';
+
+// Parent and child are mutually exclusive per account — lazy-loading means a
+// child's device never downloads parent-only code (task builder, rewards
+// manager, billing, etc.) and vice versa. lazyWithReload (not plain lazy())
+// recovers automatically if the browser has a stale app shell open across a
+// deploy and tries to fetch a chunk that no longer exists on the server.
+const ParentDashboard = lazyWithReload(() => import('./components/ParentDashboard'));
+const ChildDashboard = lazyWithReload(() => import('./components/ChildDashboard'));
 
 const LoadingSpinner = () => (
   <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center gap-4">
@@ -151,24 +159,29 @@ export default function App() {
   }
 
   return (
-    <AnimatePresence mode="wait">
-      {!user ? (
-        <motion.div key="auth" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <Auth />
-        </motion.div>
-      ) : profile?.role === 'child' ? (
-        <motion.div key="child" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <ChildDashboard profile={profile} />
-        </motion.div>
-      ) : profile?.role === 'parent' ? (
-        <motion.div key="parent" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <ParentDashboard profile={profile} />
-        </motion.div>
-      ) : (
-        <motion.div key="auth" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <Auth />
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <>
+      <Suspense fallback={<LoadingSpinner />}>
+        <AnimatePresence mode="wait">
+          {!user ? (
+            <motion.div key="auth" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <Auth />
+            </motion.div>
+          ) : profile?.role === 'child' ? (
+            <motion.div key="child" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <ChildDashboard profile={profile} />
+            </motion.div>
+          ) : profile?.role === 'parent' ? (
+            <motion.div key="parent" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <ParentDashboard profile={profile} />
+            </motion.div>
+          ) : (
+            <motion.div key="auth" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <Auth />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Suspense>
+      {user && <InstallAppBanner />}
+    </>
   );
 }
