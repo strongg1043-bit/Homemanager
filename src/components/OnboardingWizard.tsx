@@ -165,8 +165,8 @@ export default function OnboardingWizard({ profile, household, onComplete }: Pro
             </div>
             <span className="font-black text-slate-900 text-sm">Home Anchor Setup</span>
           </div>
-          <button onClick={onComplete}
-            className="text-slate-400 hover:text-slate-600 text-xs font-bold flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-all">
+          <button onClick={handleFinish} disabled={saving}
+            className="text-slate-400 hover:text-slate-600 text-xs font-bold flex items-center gap-1 px-3 py-1.5 rounded-xl hover:bg-slate-100 transition-all disabled:opacity-60">
             Skip setup <X size={12} />
           </button>
         </div>

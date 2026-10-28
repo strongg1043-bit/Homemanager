@@ -323,7 +323,8 @@ service cloud.firestore {
              n.type in [
                'task_submitted', 'task_approved', 'task_needs_retry', 'task_assigned',
                'cashout_requested', 'cashout_paid', 'reward_redeemed', 'task_due_soon',
-               'welcome', 'payment_reminder', 'dispute_raised', 'task_stale', 'parent_nudge'
+               'welcome', 'payment_reminder', 'dispute_raised', 'task_stale', 'parent_nudge',
+               'invite_sent', 'invite_parent'
              ] &&
              n.title is string && n.title.size() <= 200 &&
              n.message is string && n.message.size() <= 500 &&

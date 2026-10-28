@@ -215,6 +215,36 @@
             color: var(--white);
         }
 
+        /* Install hint — shown on browsers (iOS Safari) with no native install prompt */
+        .install-hint {
+            position: fixed;
+            bottom: 1.25rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background-color: var(--navy);
+            color: var(--white);
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            box-shadow: 0 12px 32px rgba(15, 32, 51, 0.35);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            max-width: calc(100vw - 2rem);
+            font-size: 0.9rem;
+        }
+        .install-hint p { margin: 0; }
+        .install-hint button {
+            background-color: var(--teal);
+            color: var(--white);
+            border: none;
+            padding: 0.5rem 0.9rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
         /* How It Works Section */
         .how-it-works {
             padding: 4rem 2rem;
@@ -586,9 +616,15 @@
             <li><a href="#how-it-works">How It Works</a></li>
             <li><a href="#features">Features</a></li>
             <li><a href="#benefits">Benefits</a></li>
+            <li><button class="secondary-button" id="get-app-nav" onclick="handleGetApp()">📲 Get the App</button></li>
             <li><button class="cta-button" onclick="location.href='https://app.home-anchor.org'">Launch App</button></li>
         </ul>
     </nav>
+
+    <div id="install-hint" class="install-hint" hidden>
+        <p>Tap <strong>Share</strong>, then <strong>"Add to Home Screen"</strong> — that's it.</p>
+        <button onclick="document.getElementById('install-hint').hidden = true">Got it</button>
+    </div>
 
     <!-- Hero Section -->
     <section class="hero">
@@ -600,6 +636,7 @@
                     <button class="cta-button" onclick="location.href='https://app.home-anchor.org'">Get Started Free</button>
                     <button class="secondary-button" onclick="document.getElementById('how-it-works').scrollIntoView({behavior: 'smooth'})">See How It Works</button>
                 </div>
+                <p style="margin-top: 0.75rem; opacity: 0.7; font-size: 0.9rem;">30 days free — no credit card required.</p>
             </div>
             <div class="hero-characters">
                 <div class="character parent-char">
@@ -771,6 +808,7 @@
         <h2>Ready to Transform Your Household?</h2>
         <p>Join families everywhere who've made chores fun and fair.</p>
         <button class="cta-button-large" onclick="location.href='https://app.home-anchor.org'">Start Your Free Trial Today</button>
+        <p style="margin-top: 0.75rem; opacity: 0.7; font-size: 0.9rem;">30 days free, then R79/month.</p>
     </section>
 
     <!-- Footer -->
@@ -815,6 +853,31 @@
         }
 
         setTimeout(rotateHeroCombo, 3000);
+
+        // "Get the App" — triggers the native install prompt where the browser
+        // supports it (Android Chrome/Edge); falls back to manual "Add to Home
+        // Screen" instructions on iOS Safari, which never fires that event.
+        let deferredInstallPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+        });
+
+        function handleGetApp() {
+            if (deferredInstallPrompt) {
+                deferredInstallPrompt.prompt();
+                deferredInstallPrompt.userChoice.then(() => { deferredInstallPrompt = null; });
+                return;
+            }
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            if (isIOS) {
+                document.getElementById('install-hint').hidden = false;
+            } else {
+                // No install prompt available (desktop browser, already installed, or
+                // unsupported browser) — the app itself is still a PWA, so just open it.
+                location.href = 'https://app.home-anchor.org';
+            }
+        }
     </script>
 </body>
 </html>

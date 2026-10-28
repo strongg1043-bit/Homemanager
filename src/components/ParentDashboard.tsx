@@ -6,6 +6,7 @@ import { UserProfile, Household, Task, Redemption, Dispute, EvidenceType } from 
 import ParentTaskCard from './ParentTaskCard';
 import CreateTaskForm from './CreateTaskForm';
 import { resetRecurringTasks } from '../lib/taskUtils';
+import { onSnapshotWithRetry } from '../lib/firestoreUtils';
 import RewardsManager from './RewardsManager';
 import HouseholdSetup from './HouseholdSetup';
 import HouseholdSettings from './HouseholdSettings';
@@ -22,6 +23,7 @@ import DailyQuoteCard from './DailyQuoteCard';
 import PushNotificationCard from './PushNotificationCard';
 import SubscriptionPaywall from './SubscriptionPaywall';
 import TrialBanner from './TrialBanner';
+import BillingCard from './BillingCard';
 import { getFamilyColour } from '../lib/familyUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -246,7 +248,7 @@ export default function ParentDashboard({ profile }: Props) {
     // ARCH-2: Single live query instead of N individual getDoc calls inside household callback.
     // This listener automatically reflects profile changes (display name, points, etc.).
     const membersQuery = query(collection(db, 'users'), where('householdId', '==', profile.householdId));
-    const unsubMembers = onSnapshot(
+    const unsubMembers = onSnapshotWithRetry(
       membersQuery,
       (snap) => {
         setMembers(snap.docs.map(d => d.data() as UserProfile));
@@ -1120,6 +1122,10 @@ export default function ParentDashboard({ profile }: Props) {
                   </div>
 
                   <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+                     {household && <BillingCard household={household} />}
+                  </div>
+
+                  <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
                      {household && <RewardsManager household={household} />}
                   </div>
 
@@ -1224,6 +1230,7 @@ export default function ParentDashboard({ profile }: Props) {
               <TaskStatement
                 householdId={household.id}
                 onRequestPayment={(redemption) => setSelectedRedemptionForPayment(redemption)}
+                onDispute={(redemption) => setSelectedRedemptionForDispute(redemption)}
                 profile={profile}
                 members={members}
                 currency={household.currency}

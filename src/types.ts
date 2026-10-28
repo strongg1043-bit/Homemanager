@@ -148,7 +148,7 @@ export interface Redemption {
 
 export type NotificationType = 'task_submitted' | 'task_approved' | 'task_needs_retry' | 'task_assigned' |
   'cashout_requested' | 'cashout_paid' | 'reward_redeemed' | 'task_due_soon' | 'welcome' | 'payment_reminder' | 'dispute_raised' |
-  'task_stale' | 'parent_nudge';
+  'task_stale' | 'parent_nudge' | 'invite_sent' | 'invite_parent';
 
 export interface Dispute {
   id: string;

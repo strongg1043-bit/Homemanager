@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, doc, setDoc } from 'firebase/firestore';
 import { sendWelcomeEmail, sendChildInviteEmail } from '../lib/email';
 import { UserPlus, Check, Loader2, Sparkles, Send, Shield, Star, Gift } from 'lucide-react';
@@ -41,6 +41,7 @@ export default function InviteMemberCard({ householdId, householdName, household
       // 1. Create a notification record in the household stream
       await addDoc(collection(db, 'households', householdId, 'notifications'), {
         householdId,
+        recipientId: auth.currentUser?.uid,
         recipientRole: 'parent',
         type: 'invite_sent',
         title: `Invite sent to ${name}`,

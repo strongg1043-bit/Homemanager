@@ -3,7 +3,7 @@ import { db } from '../firebase';
 import { collection, query, onSnapshot, orderBy, Timestamp, doc, updateDoc, increment, writeBatch } from 'firebase/firestore';
 import { Task, Redemption, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Printer, XCircle, Banknote, Gift, Eye } from 'lucide-react';
+import { Printer, XCircle, Banknote, Gift, Eye, AlertTriangle } from 'lucide-react';
 
 interface Props {
   householdId: string;
@@ -13,6 +13,8 @@ interface Props {
   isParent: boolean;
   /** Parent only — opens PaymentConfirmationModal for a cash/reward payout. */
   onRequestPayment?: (redemption: Redemption) => void;
+  /** Parent only — opens DisputeModal for a redemption, any status. */
+  onDispute?: (redemption: Redemption) => void;
 }
 
 type DateRange = 'week' | 'month' | 'all';
@@ -69,7 +71,7 @@ function getDateBoundary(range: DateRange): Date {
   return new Date(0);
 }
 
-export default function TaskStatement({ householdId, profile, members, currency, isParent, onRequestPayment }: Props) {
+export default function TaskStatement({ householdId, profile, members, currency, isParent, onRequestPayment, onDispute }: Props) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -397,7 +399,7 @@ export default function TaskStatement({ householdId, profile, members, currency,
                   </div>
                 </div>
 
-                {(hasProof || isActionable) && redemption && (
+                {(hasProof || isActionable || (isParent && onDispute)) && redemption && (
                   <div className="px-6 pb-3.5 flex items-center justify-end gap-2">
                     {hasProof && (
                       <button
@@ -440,6 +442,15 @@ export default function TaskStatement({ householdId, profile, members, currency,
                       >
                         {isCash ? <Banknote size={14} /> : <Gift size={14} />}
                         {isCash ? 'Mark as Paid' : 'Mark Fulfilled'}
+                      </button>
+                    )}
+                    {isParent && onDispute && (
+                      <button
+                        onClick={() => onDispute(redemption)}
+                        className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        title="Raise Dispute"
+                      >
+                        <AlertTriangle size={16} />
                       </button>
                     )}
                   </div>

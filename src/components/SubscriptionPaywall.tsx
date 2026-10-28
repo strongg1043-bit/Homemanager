@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { functions } from '../firebase';
+import { functions, auth } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
+import { signOut } from 'firebase/auth';
 import { Household, UserProfile } from '../types';
 import { useLocalizedPrice } from '../lib/pricing';
-import { Lock, Loader2, Heart } from 'lucide-react';
+import { Lock, Loader2, Heart, LogOut } from 'lucide-react';
 
 interface Props {
   variant: 'parent' | 'child';
@@ -48,7 +49,7 @@ export default function SubscriptionPaywall({ variant, household, profile }: Pro
           {variant === 'parent' ? (
             <>
               <p className="text-slate-600 font-medium text-sm leading-relaxed">
-                {household.name} has had 60 days of Home Anchor. To keep using it —
+                {household.name} has had 30 days of Home Anchor. To keep using it —
                 tasks, rewards, everything — subscribe below.
               </p>
               <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5">
@@ -77,6 +78,13 @@ export default function SubscriptionPaywall({ variant, household, profile }: Pro
             </>
           )}
         </div>
+
+        <button
+          onClick={() => signOut(auth)}
+          className="w-full py-4 flex items-center justify-center gap-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 font-bold text-xs uppercase tracking-widest transition-colors border-t border-slate-100"
+        >
+          <LogOut size={14} /> Sign Out
+        </button>
       </div>
     </div>
   );
