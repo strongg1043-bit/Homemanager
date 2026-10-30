@@ -21,6 +21,7 @@ import TaskLibrary from './TaskLibrary';
 import OnboardingWizard from './OnboardingWizard';
 import DailyQuoteCard from './DailyQuoteCard';
 import PushNotificationCard from './PushNotificationCard';
+import DeleteAccountCard from './DeleteAccountCard';
 import SubscriptionPaywall from './SubscriptionPaywall';
 import TrialBanner from './TrialBanner';
 import BillingCard from './BillingCard';
@@ -1130,6 +1131,8 @@ export default function ParentDashboard({ profile }: Props) {
                   </div>
 
                   <PushNotificationCard uid={profile.uid} />
+
+                  <DeleteAccountCard profile={profile} />
                 </div>
 
               <SuggestFeature

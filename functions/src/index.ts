@@ -4,6 +4,8 @@ import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue, Firestore, Timestamp } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
+import { getAuth } from 'firebase-admin/auth';
+import { deleteAccount, AccountDeletionError } from './accountDeletion';
 import * as crypto from 'node:crypto';
 
 initializeApp();
@@ -537,6 +539,52 @@ export const lemonSqueezyWebhook = onRequest(
 
     console.log(`[Billing] ${eventName} → household ${householdId} is now ${mappedStatus}`);
     response.status(200).send('ok');
+  },
+);
+
+// ── Account deletion ─────────────────────────────────────────────────────────
+//
+// Lets a signed-in user delete their own account and data (a Google Play
+// requirement). The deletion rules live in accountDeletion.ts; this wrapper only
+// handles auth, the Lemon Squeezy cancellation call, and error mapping.
+
+async function cancelLemonSqueezySubscription(subscriptionId: number): Promise<void> {
+  const apiKey = process.env.LEMON_SQUEEZY_API_KEY;
+  if (!apiKey) throw new Error('LEMON_SQUEEZY_API_KEY is not configured');
+  const res = await fetch(`https://api.lemonsqueezy.com/v1/subscriptions/${subscriptionId}`, {
+    method: 'DELETE',
+    headers: { Accept: 'application/vnd.api+json', Authorization: `Bearer ${apiKey}` },
+  });
+  // 404 = already gone on Lemon Squeezy's side, which is the state we want.
+  if (!res.ok && res.status !== 404) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`Lemon Squeezy ${res.status}: ${text}`);
+  }
+}
+
+export const deleteMyAccount = onCall(
+  { region: 'us-central1', secrets: ['LEMON_SQUEEZY_API_KEY'] },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
+    const { confirmHouseholdDeletion } = (request.data || {}) as { confirmHouseholdDeletion?: boolean };
+
+    try {
+      return await deleteAccount(
+        { db: getFirestore(), auth: getAuth(), cancelSubscription: cancelLemonSqueezySubscription },
+        request.auth.uid,
+        { confirmHouseholdDeletion: confirmHouseholdDeletion === true },
+      );
+    } catch (err) {
+      if (err instanceof AccountDeletionError) {
+        throw new HttpsError(
+          err.code === 'confirmation-required' ? 'failed-precondition' : 'unavailable',
+          err.message,
+          { code: err.code, ...err.details },
+        );
+      }
+      console.error('[AccountDeletion] Failed:', err);
+      throw new HttpsError('internal', 'Could not delete your account. Please try again.');
+    }
   },
 );
 

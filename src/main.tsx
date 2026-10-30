@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import { reportError, installGlobalErrorReporting } from './lib/errorReporting';
+import { isAndroidApp } from './lib/platform';
 
 interface EBProps  { children: ReactNode }
 interface EBState  { error: Error | null }
@@ -46,6 +47,9 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
 }
 
 installGlobalErrorReporting();
+
+// Capture the Android-app launch referrer before any in-app navigation can lose it.
+isAndroidApp();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
