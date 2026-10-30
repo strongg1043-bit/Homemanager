@@ -2,7 +2,7 @@ name: Deploy
 
 # Deploys Cloud Functions and both Firebase Hosting sites (app + landing) to production.
 #
-# Runs automatically after CI passes on master, or by hand from the Actions tab.
+# Runs automatically after CI passes on main, or by hand from the Actions tab.
 # It uses the GitHub "production" environment, so you can require a manual approval
 # before each deploy (Settings → Environments → production → Required reviewers).
 #
@@ -28,7 +28,7 @@ on:
   workflow_run:
     workflows: [CI]
     types: [completed]
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
     inputs:
       only:
@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # Deploy exactly the commit CI tested, not whatever master has moved to since.
+          # Deploy exactly the commit CI tested, not whatever main has moved to since.
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: actions/setup-node@v4
