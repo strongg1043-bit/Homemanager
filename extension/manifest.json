@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Home Anchor",
-  "version": "1.0.0",
-  "description": "Quick access to Home Anchor: open your household dashboard from the toolbar or right-click menu.",
+  "version": "1.1.0",
+  "description": "See today's chores and open Home Anchor from the toolbar.",
   "action": {
     "default_title": "Home Anchor",
     "default_popup": "popup.html",
@@ -19,12 +19,25 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "background": { "service_worker": "background.js" },
-  "permissions": ["contextMenus"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "contextMenus",
+    "storage"
+  ],
   "commands": {
     "_execute_action": {
-      "suggested_key": { "default": "Alt+Shift+H", "mac": "Alt+Shift+H" },
+      "suggested_key": {
+        "default": "Alt+Shift+H",
+        "mac": "Alt+Shift+H"
+      },
       "description": "Open the Home Anchor popup"
     }
-  }
+  },
+  "host_permissions": [
+    "https://identitytoolkit.googleapis.com/*",
+    "https://securetoken.googleapis.com/*",
+    "https://firestore.googleapis.com/*"
+  ]
 }
