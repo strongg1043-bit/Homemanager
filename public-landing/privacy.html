@@ -68,7 +68,7 @@
 
     <main>
         <h1>Privacy Policy</h1>
-        <p class="updated">Last updated: 6 October 2026</p>
+        <p class="updated">Last updated: 30 October 2026</p>
 
         <p>Home Anchor ("the app", "we", "us") is a family chore and allowance app built by an independent developer. This page explains what information the app collects, how it's used, and how families — including children using the app — are protected.</p>
 
@@ -85,6 +85,7 @@
             <li><strong>Task activity:</strong> task titles, descriptions, due dates, point values, and — when a task requires it — a photo submitted as proof of completion. Photos are compressed and stored as part of the task record; they are not shared outside the household.</li>
             <li><strong>Points and rewards:</strong> points earned and spent, reward redemptions, and cash-out requests. These are in-app virtual points only — Home Anchor does not process real payments or store payment card details.</li>
             <li><strong>Notifications:</strong> if you turn on push notifications, we store a device token so we can send task reminders. You can turn this off at any time in your device or browser settings.</li>
+            <li><strong>Subscription status:</strong> whether your household's free trial or paid subscription is active, plus the customer and subscription reference numbers our payment processor gives us. Your card details are entered with our payment processor and are never seen or stored by Home Anchor.</li>
             <li><strong>Feature suggestions:</strong> anything you choose to submit through the in-app "Suggest an Improvement" form.</li>
         </ul>
 
@@ -97,13 +98,14 @@
         <ul>
             <li><strong>Firebase (Google):</strong> authentication, database storage, hosting, and push notification delivery. This is where all account, household, and task data lives.</li>
             <li><strong>EmailJS:</strong> used to send transactional emails (invites, task approvals, payment confirmations). Only the recipient's name, email address, and the email content are shared.</li>
+            <li><strong>Lemon Squeezy:</strong> our payment processor and merchant of record for subscriptions. It receives the payer's email address and payment details when a parent subscribes. Children's information is never sent to it.</li>
             <li><strong>Anthropic:</strong> used only to generate a single, generic daily inspirational quote shown to all users. No account or personal data is ever sent to Anthropic.</li>
         </ul>
         <p>We do not sell personal information, and we do not share it with anyone for their own marketing purposes.</p>
 
         <h2>Children's privacy</h2>
-        <p>Home Anchor is built for parents to use with their children under direct parental supervision. A child's account can only be created by a parent, who sets up the household and invites the child. We collect only what's needed for the child to use the task and reward features described above — we don't knowingly collect more than that, and the app contains no advertising, in-app purchases, or chat features reaching outside the household.</p>
-        <p>If you are a parent and want to review, correct, or delete your child's information, contact us at the email below and we'll action it directly.</p>
+        <p>Home Anchor is built for parents to use with their children under direct parental supervision. A child's account can only be created by a parent, who sets up the household and invites the child. We collect only what's needed for the child to use the task and reward features described above — we don't knowingly collect more than that, and the app contains no advertising and no chat features reaching outside the household. Only a parent can start or manage a subscription, and children cannot make purchases.</p>
+        <p>If you are a parent and want to review, correct, or delete your child's information, you can delete your child's account yourself from within the app (see "Deleting your account" below), or contact us at the email below and we'll action it directly.</p>
 
         <h2>Data security</h2>
         <p>Data is encrypted in transit (HTTPS) and at rest on Google Cloud infrastructure. Access to a household's data is restricted by server-side security rules to members of that household only — no other user can read it.</p>
@@ -112,8 +114,12 @@
         <ul>
             <li>You can edit or remove your profile photo, display name, and household settings at any time from within the app.</li>
             <li>You can turn off push notifications at any time from your device or browser settings.</li>
-            <li>You can request deletion of your account or your child's account by emailing us — we'll remove the associated data within a reasonable time.</li>
+            <li>You can delete your account and its data at any time from inside the app, with no need to contact us. See "Deleting your account" below.</li>
         </ul>
+
+        <h2>Deleting your account</h2>
+        <p>Anyone can delete their own account from the app: parents go to <strong>Manage</strong> and choose <strong>Delete account</strong>; children open their <strong>Profile</strong> tab and choose <strong>Delete account</strong>. Deletion is immediate and permanent. The full steps, including what is deleted and how to ask us to do it if you cannot open the app, are on our <a href="/delete-account.html">account deletion page</a>.</p>
+        <p>If the last parent in a household deletes their account, the whole household is deleted, including every child's account and data, and any active subscription is cancelled. Our payment processor may keep its own billing records for as long as tax and accounting law requires.</p>
 
         <h2>Changes to this policy</h2>
         <p>If this policy changes, we'll update the date at the top of this page. Significant changes will also be noted in the app.</p>

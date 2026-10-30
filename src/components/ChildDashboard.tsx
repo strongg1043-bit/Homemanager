@@ -8,6 +8,7 @@ import ChildTaskCard from './ChildTaskCard';
 import RedeemRewards from './RedeemRewards';
 import SuggestFeature from './SuggestFeature';
 import PushNotificationCard from './PushNotificationCard';
+import DeleteAccountCard from './DeleteAccountCard';
 import HouseholdSetup from './HouseholdSetup';
 import SubscriptionPaywall from './SubscriptionPaywall';
 import ChildWelcomeScreen from './ChildWelcomeScreen';
@@ -657,6 +658,8 @@ export default function ChildDashboard({ profile }: Props) {
                 householdId={household?.id || ''}
                 householdName={household?.name || ''}
               />
+
+              <DeleteAccountCard profile={profile} />
             </motion.div>
           )}
 

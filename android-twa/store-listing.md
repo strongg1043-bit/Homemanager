@@ -30,7 +30,7 @@ Assign tasks as daily, weekly, monthly, or one-off missions. Kids complete them,
 **Built on trust, not nagging.**
 Every approval, dispute, and payment is recorded, so there's never an argument about what was agreed. Trust scores reward consistency. Nothing here is about punishment — it's about making responsibility visible and worth it.
 
-No ads. No tracking. Your family's data stays your family's data — see our privacy policy for the full picture.
+No ads. No tracking. Your family's data stays your family's data, and you can delete your account and its data any time from inside the app — see our privacy policy for the full picture.
 
 Home Anchor is built by an independent developer who wanted a better way to run chores at home. If it works for your family, we'd love to hear from you.
 
@@ -42,6 +42,9 @@ Target age group questionnaire → select "Parental guidance" / family-oriented,
 
 ## Privacy policy URL
 https://home-anchor.org/privacy.html
+
+## Account deletion URL (Data safety form → "Delete account URL")
+https://home-anchor.org/delete-account.html
 
 ## Contact email
 homemanagercomms@gmail.com

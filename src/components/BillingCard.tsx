@@ -3,6 +3,7 @@ import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { Household } from '../types';
 import { useLocalizedPrice } from '../lib/pricing';
+import { billingHidden } from '../lib/platform';
 import { CreditCard, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 interface Props {
@@ -20,6 +21,9 @@ export default function BillingCard({ household }: Props) {
   const { zarPrice, usdEstimate } = useLocalizedPrice();
 
   const status = household.subscriptionStatus;
+
+  // Play Store build with the billing kill switch on: no price, no checkout.
+  if (billingHidden()) return null;
 
   const handleSubscribe = async () => {
     setStarting(true);

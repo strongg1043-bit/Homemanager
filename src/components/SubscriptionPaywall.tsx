@@ -4,6 +4,8 @@ import { httpsCallable } from 'firebase/functions';
 import { signOut } from 'firebase/auth';
 import { Household, UserProfile } from '../types';
 import { useLocalizedPrice } from '../lib/pricing';
+import { billingHidden } from '../lib/platform';
+import DeleteAccountCard from './DeleteAccountCard';
 import { Lock, Loader2, Heart, LogOut } from 'lucide-react';
 
 interface Props {
@@ -16,6 +18,7 @@ export default function SubscriptionPaywall({ variant, household, profile }: Pro
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
   const { zarPrice, usdEstimate } = useLocalizedPrice();
+  const hideBilling = billingHidden();
 
   const handleSubscribe = async () => {
     setStarting(true);
@@ -46,7 +49,12 @@ export default function SubscriptionPaywall({ variant, household, profile }: Pro
         </div>
 
         <div className="p-8 space-y-6 text-center">
-          {variant === 'parent' ? (
+          {variant === 'parent' && hideBilling ? (
+            // Play Store build with the billing kill switch on: deliberately no price, button or link.
+            <p className="text-slate-600 font-medium text-sm leading-relaxed">
+              {household.name}'s free trial has ended. Subscriptions can't be started or managed in this app.
+            </p>
+          ) : variant === 'parent' ? (
             <>
               <p className="text-slate-600 font-medium text-sm leading-relaxed">
                 {household.name} has had 30 days of Home Anchor. To keep using it —
@@ -85,6 +93,7 @@ export default function SubscriptionPaywall({ variant, household, profile }: Pro
         >
           <LogOut size={14} /> Sign Out
         </button>
+        <DeleteAccountCard profile={profile} compact />
       </div>
     </div>
   );
