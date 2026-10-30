@@ -1,0 +1,11 @@
+:root { --navy: #1B3A5C; --amber: #F5A623; }
+* { box-sizing: border-box; }
+body { width: 260px; margin: 0; padding: 14px; font: 14px system-ui, sans-serif; color: var(--navy); background: #fff; }
+header { display: flex; align-items: center; gap: 10px; }
+h1 { font-size: 17px; margin: 0; }
+.tagline { margin: 8px 0 12px; color: #55708c; font-size: 12px; }
+button { display: block; width: 100%; margin-top: 8px; padding: 9px 10px; border: 1px solid var(--navy); border-radius: 8px; background: #fff; color: var(--navy); font: inherit; font-weight: 600; cursor: pointer; }
+button:hover { background: #eef3f8; }
+button.primary { background: var(--navy); color: #fff; }
+button.primary:hover { background: #24507d; }
+#status { min-height: 16px; margin: 8px 0 0; font-size: 12px; color: #2e7d32; }

@@ -3,6 +3,7 @@ import { functions } from '../firebase';
 import { httpsCallable } from 'firebase/functions';
 import { Household } from '../types';
 import { useLocalizedPrice } from '../lib/pricing';
+import { billingHidden } from '../lib/platform';
 import { Clock, Loader2 } from 'lucide-react';
 
 interface Props {
@@ -16,7 +17,7 @@ export default function TrialBanner({ household }: Props) {
   const [starting, setStarting] = useState(false);
   const { zarPrice } = useLocalizedPrice();
 
-  if (household.subscriptionStatus !== 'trialing' || !household.trialEndsAt) return null;
+  if (billingHidden() || household.subscriptionStatus !== 'trialing' || !household.trialEndsAt) return null;
   const daysLeft = Math.ceil((household.trialEndsAt.toMillis() - Date.now()) / MS_PER_DAY);
   if (daysLeft > 7) return null;
 

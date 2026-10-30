@@ -1,0 +1,155 @@
+name: Deploy
+
+# Deploys Cloud Functions and both Firebase Hosting sites (app + landing) to production.
+#
+# Runs automatically after CI passes on master, or by hand from the Actions tab.
+# It uses the GitHub "production" environment, so you can require a manual approval
+# before each deploy (Settings → Environments → production → Required reviewers).
+#
+# One-time setup, all in the GitHub repo settings:
+#
+#   Secret (Settings → Secrets and variables → Actions → Secrets):
+#     FIREBASE_SERVICE_ACCOUNT   JSON key of a deploy-only service account for the project
+#
+#   Variables (…→ Variables). These are the public web-app config values from .env.example,
+#   not secrets, so they are stored as variables:
+#     VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, VITE_FIREBASE_PROJECT_ID,
+#     VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID, VITE_FIREBASE_APP_ID,
+#     VITE_FIREBASE_VAPID_KEY, VITE_EMAILJS_SERVICE_ID, VITE_EMAILJS_PUBLIC_KEY,
+#     VITE_EMAILJS_REPLY_TO, VITE_APP_URL
+#   Optional variable:
+#     VITE_HIDE_BILLING_IN_ANDROID_APP   "true" turns the Play Store billing kill switch on
+#                                        (default: off)
+#
+# Function secrets (LEMON_SQUEEZY_API_KEY etc.) live in Google Secret Manager and are only
+# referenced by the functions, so they are not needed here.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'What to deploy (firebase --only value)'
+        default: 'functions,hosting'
+        required: true
+
+# Never run two deploys at once, and never cancel one that is already in flight.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FIREBASE_PROJECT: homemanager-c409a
+  FIREBASE_TOOLS_VERSION: 15.34.2
+
+jobs:
+  deploy:
+    name: Deploy to production
+    # For the automatic trigger, only deploy when CI actually passed.
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Deploy exactly the commit CI tested, not whatever master has moved to since.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check required configuration
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_VAPID_KEY: ${{ vars.VITE_FIREBASE_VAPID_KEY }}
+          VITE_EMAILJS_SERVICE_ID: ${{ vars.VITE_EMAILJS_SERVICE_ID }}
+          VITE_EMAILJS_PUBLIC_KEY: ${{ vars.VITE_EMAILJS_PUBLIC_KEY }}
+          VITE_EMAILJS_REPLY_TO: ${{ vars.VITE_EMAILJS_REPLY_TO }}
+          VITE_APP_URL: ${{ vars.VITE_APP_URL }}
+          USE_EMULATORS: ${{ vars.VITE_USE_EMULATORS }}
+        run: |
+          missing=0
+          for name in SERVICE_ACCOUNT VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN \
+            VITE_FIREBASE_PROJECT_ID VITE_FIREBASE_STORAGE_BUCKET VITE_FIREBASE_MESSAGING_SENDER_ID \
+            VITE_FIREBASE_APP_ID VITE_FIREBASE_VAPID_KEY VITE_EMAILJS_SERVICE_ID \
+            VITE_EMAILJS_PUBLIC_KEY VITE_EMAILJS_REPLY_TO VITE_APP_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing configuration: $name (see the setup notes at the top of .github/workflows/deploy.yml)"
+              missing=1
+            fi
+          done
+          # A production build must never talk to the emulators.
+          if [ "$USE_EMULATORS" = "true" ]; then
+            echo "::error::VITE_USE_EMULATORS must not be set for production builds"
+            missing=1
+          fi
+          exit $missing
+
+      - run: npm ci
+
+      - name: Build app
+        env:
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_VAPID_KEY: ${{ vars.VITE_FIREBASE_VAPID_KEY }}
+          VITE_EMAILJS_SERVICE_ID: ${{ vars.VITE_EMAILJS_SERVICE_ID }}
+          VITE_EMAILJS_PUBLIC_KEY: ${{ vars.VITE_EMAILJS_PUBLIC_KEY }}
+          VITE_EMAILJS_REPLY_TO: ${{ vars.VITE_EMAILJS_REPLY_TO }}
+          VITE_APP_URL: ${{ vars.VITE_APP_URL }}
+          VITE_HIDE_BILLING_IN_ANDROID_APP: ${{ vars.VITE_HIDE_BILLING_IN_ANDROID_APP || 'false' }}
+        run: npm run build
+
+      - name: Build functions
+        working-directory: functions
+        run: |
+          npm ci
+          npm run build
+
+      # Writes the key to a temp file and exports GOOGLE_APPLICATION_CREDENTIALS, which
+      # firebase-tools picks up automatically. Nothing is stored in the repo.
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Deploy
+        env:
+          ONLY: ${{ github.event.inputs.only || 'functions,hosting' }}
+        run: >
+          npx --yes firebase-tools@${{ env.FIREBASE_TOOLS_VERSION }} deploy
+          --project "${{ env.FIREBASE_PROJECT }}"
+          --only "$ONLY"
+          --non-interactive
+
+      # Warn (never fail) if the new public pages aren't reachable, so a DNS or hosting
+      # problem is visible without turning a successful deploy red.
+      - name: Smoke check
+        if: ${{ !github.event.inputs.only || contains(github.event.inputs.only, 'hosting') }}
+        run: |
+          for url in \
+            https://home-anchor.org/delete-account.html \
+            https://home-anchor.org/privacy.html \
+            https://app.home-anchor.org/.well-known/assetlinks.json; do
+            if curl -fsS --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null "$url"; then
+              echo "OK   $url"
+            else
+              echo "::warning::Smoke check failed: $url"
+            fi
+          done

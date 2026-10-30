@@ -12,6 +12,7 @@
     "test:e2e": "firebase --config firebase.test.json emulators:exec --only auth,firestore --project homemanager-c409a \"npx playwright test\"",
     "test:e2e:ui": "firebase --config firebase.test.json emulators:exec --only auth,firestore --project homemanager-c409a \"npx playwright test --ui\"",
     "test:rules": "firebase emulators:exec --only firestore --project homemanager-c409a \"tsx tests/rules/run.ts\"",
+    "test:functions": "firebase emulators:exec --only firestore --project homemanager-c409a \"tsx functions/test/run.ts\"",
     "deploy:safe": "npm run build && npm run test:e2e && npm run test:rules && firebase deploy"
   },
   "dependencies": {
