@@ -1,3 +1,4 @@
+import { onSnapshot, Query, QuerySnapshot, DocumentData, FirestoreError } from 'firebase/firestore';
 import { auth } from '../firebase';
 
 export enum OperationType {
@@ -51,4 +52,50 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
   // Throw a sanitised error — no PII in the message string.
   throw new Error(`Firestore ${operationType} failed on "${path ?? 'unknown'}": ${errorMessage}`);
+}
+
+/**
+ * Subscribes to a query, silently retrying a few times (with backoff) if the very
+ * first error is `permission-denied`. This happens transiently right after a user
+ * joins a household: the security rule reads this user's own householdId back off
+ * their user doc, and that write can take a moment to become visible to the rule's
+ * own read — a plain page reload always "fixes" it, which is the tell that it's a
+ * propagation race rather than a real permissions problem. Returns an unsubscribe
+ * function that also cancels any pending retry.
+ */
+export function onSnapshotWithRetry(
+  query: Query<DocumentData>,
+  onNext: (snap: QuerySnapshot<DocumentData>) => void,
+  onError: (err: FirestoreError) => void,
+  maxRetries = 3,
+): () => void {
+  let unsub: () => void = () => {};
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let retries = 0;
+  let cancelled = false;
+
+  function subscribe() {
+    unsub = onSnapshot(
+      query,
+      (snap) => {
+        retries = 0;
+        onNext(snap);
+      },
+      (err) => {
+        if (err.code === 'permission-denied' && retries < maxRetries && !cancelled) {
+          retries++;
+          retryTimer = setTimeout(subscribe, 800 * retries);
+          return;
+        }
+        onError(err);
+      },
+    );
+  }
+  subscribe();
+
+  return () => {
+    cancelled = true;
+    if (retryTimer) clearTimeout(retryTimer);
+    unsub();
+  };
 }

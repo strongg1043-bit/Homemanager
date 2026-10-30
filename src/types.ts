@@ -3,7 +3,7 @@ import { Timestamp } from 'firebase/firestore';
 export type Role = 'parent' | 'child';
 export type TaskType = 'daily' | 'weekly' | 'monthly' | 'adhoc_date' | 'adhoc_kpi';
 export type EvidenceType = 'photo' | 'document' | 'grade' | 'any';
-export type TaskStatus = 'pending' | 'accepted' | 'submitted' | 'approved' | 'needs_retry' | 'missed' | 'forfeited';
+export type TaskStatus = 'pending' | 'accepted' | 'submitted' | 'approved' | 'needs_retry' | 'missed' | 'forfeited' | 'proposed';
 
 export interface UserProfile {
   uid: string;
@@ -17,6 +17,9 @@ export interface UserProfile {
   trustScore: number;
   badges: string[];
   email?: string;
+  showOnboarding?: boolean;       // parent: show wizard on first login
+  showChildOnboarding?: boolean;  // child: show welcome screen on first login
+  fcmTokens?: string[];           // registered push notification device tokens
 }
 
 export interface RewardItem {
@@ -24,6 +27,8 @@ export interface RewardItem {
   title: string;
   pointCost: number;
 }
+
+export type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired';
 
 export interface Household {
   id: string;
@@ -35,11 +40,24 @@ export interface Household {
   currencyName: string;
   cashOutEnabled: boolean;
   minCashOut: number;
+  emailNotificationsEnabled?: boolean;
   createdAt: Timestamp;
   inviteCode: string;
   familyColour: string;
   familyLogo: string | null;
   familyMotto: string | null;
+  timezone?: string;
+  onboardingTaskPoints?: number;
+
+  // Subscription billing — written only server-side (trial-init trigger, the
+  // daily expiry sweep, and the Lemon Squeezy webhook). Never client-writable.
+  subscriptionStatus?: SubscriptionStatus;
+  trialEndsAt?: Timestamp;
+  currentPeriodEnd?: Timestamp | null;
+  lemonSqueezy?: {
+    customerId?: number;
+    subscriptionId?: number;
+  } | null;
 }
 
 export interface Task {
@@ -61,9 +79,11 @@ export interface Task {
   
   // Recurrence
   recurrence?: {
-    weekday?: string;
-    dayOfMonth?: number;
+    weekday?: string | null;
+    dayOfMonth?: number | null;
     lastReset?: Timestamp;
+    endDate?: Timestamp | null;
+    expired?: boolean;
   };
   
   dueDate: Timestamp | null;
@@ -72,14 +92,30 @@ export interface Task {
   proofPhotoUrl: string | null;
   
   // Agreement tracking
-  proposedBy: 'parent' | 'child';
+  proposedBy: 'parent' | 'child' | null;
   rewardLocked: boolean;
   rewardLockedAt?: Timestamp;
   childAcceptedAt?: Timestamp;
   
+  // Retry feedback
+  retryNote?: string | null;
+
+  // Missed tracking (for recurring tasks)
+  missedCount?: number;
+  lastMissedAt?: Timestamp | null;
+
+  // Onboarding task (auto-created when child joins household)
+  isOnboardingTask?: boolean;
+
   completedAt: Timestamp | null;
   approvedAt: Timestamp | null;
   createdAt: Timestamp;
+
+  // Push notification nudges (written only server-side, by the scheduled function
+  // or the sendNudge callable)
+  lastDueSoonNudgeAt?: Timestamp | null;
+  lastStaleNudgeAt?: Timestamp | null;
+  lastManualNudgeAt?: Timestamp | null;
 }
 
 export type RedemptionType = 'reward' | 'cash';
@@ -111,7 +147,8 @@ export interface Redemption {
 }
 
 export type NotificationType = 'task_submitted' | 'task_approved' | 'task_needs_retry' | 'task_assigned' |
-  'cashout_requested' | 'cashout_paid' | 'reward_redeemed' | 'task_due_soon' | 'welcome' | 'payment_reminder' | 'dispute_raised';
+  'cashout_requested' | 'cashout_paid' | 'reward_redeemed' | 'task_due_soon' | 'welcome' | 'payment_reminder' | 'dispute_raised' |
+  'task_stale' | 'parent_nudge' | 'invite_sent' | 'invite_parent';
 
 export interface Dispute {
   id: string;

@@ -1,0 +1,11 @@
+rules_version = '2';
+// Open rules for the local emulator during E2E tests only.
+// This file is referenced by firebase.json under "emulators.firestore.rules"
+// and is never deployed to production.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

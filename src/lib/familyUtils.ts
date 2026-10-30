@@ -8,10 +8,16 @@ export function generateInviteCode(): string {
 
 export function getFamilyColour(colour: string): string {
   const colours: Record<string, string> = {
-    indigo: '#4F46E5', emerald: '#059669', amber: '#D97706',
-    rose: '#E11D48', violet: '#7C3AED', sky: '#0284C7'
+    // Brand colours — primary picks
+    indigo:  '#1B3A5C', // NAVY  (primary brand)
+    violet:  '#2E7D6B', // TEAL  (secondary brand)
+    amber:   '#F5A35A', // AMBER (accent brand)
+    // Semantic colours — kept for variety
+    emerald: '#059669',
+    rose:    '#E11D48',
+    sky:     '#0284C7',
   };
-  return colours[colour] || '#4F46E5';
+  return colours[colour] || '#1B3A5C';
 }
 
 export const COLOUR_OPTIONS = ['indigo', 'emerald', 'amber', 'rose', 'violet', 'sky'];

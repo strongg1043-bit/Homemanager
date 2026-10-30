@@ -17,11 +17,11 @@ interface Props {
 }
 
 const TYPE_CONFIG = [
-  { id: 'daily', label: 'Daily', icon: Sun, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100', desc: 'Routines like tidying' },
-  { id: 'weekly', label: 'Weekly', icon: CalendarDays, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', desc: 'Recurring each week' },
-  { id: 'monthly', label: 'Monthly', icon: CalendarRange, color: 'text-pink-600', bg: 'bg-pink-50', border: 'border-pink-100', desc: 'Big monthly goals' },
-  { id: 'adhoc_date', label: 'Adhoc', icon: Pin, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', desc: 'One-off specific tasks' },
-  { id: 'adhoc_kpi', label: 'KPI Goal', icon: Target, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100', desc: 'Achievement targets' },
+  { id: 'daily',      label: 'Daily',     icon: Sun,          color: 'text-green-600', bg: 'bg-green-50',  border: 'border-green-100',  desc: 'Every day until end date' },
+  { id: 'weekly',     label: 'Weekly',    icon: CalendarDays, color: 'text-blue-600',  bg: 'bg-blue-50',   border: 'border-blue-100',   desc: 'Once per week until end date' },
+  { id: 'monthly',    label: 'Monthly',   icon: CalendarRange,color: 'text-pink-600',  bg: 'bg-pink-50',   border: 'border-pink-100',   desc: 'Once per month until end date' },
+  { id: 'adhoc_date', label: 'One-off',   icon: Pin,          color: 'text-amber-600', bg: 'bg-amber-50',  border: 'border-amber-100',  desc: 'Single task with a due date' },
+  { id: 'adhoc_kpi',  label: 'KPI Goal',  icon: Target,       color: 'text-purple-600',bg: 'bg-purple-50', border: 'border-purple-100', desc: 'Achievement target' },
 ] as const;
 
 export default function CreateTaskForm({ householdId, members, onClose }: Props) {
@@ -36,6 +36,7 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
   const [requiresProof, setRequiresProof] = useState(true);
   const [beforePhotoUrl, setBeforePhotoUrl] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [weekday, setWeekday] = useState('monday');
   const [dayOfMonth, setDayOfMonth] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -44,6 +45,8 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
 
   const children = members.filter(m => m.role === 'child');
   const today = new Date().toISOString().split('T')[0];
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+  const isRecurring = taskType === 'daily' || taskType === 'weekly' || taskType === 'monthly';
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -79,8 +82,16 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
       setFormError("Please specify the Target Metric for the KPI Goal.");
       return;
     }
-    if ((taskType === 'adhoc' || taskType === 'adhoc_date' || taskType === 'adhoc_kpi') && !dueDate) {
-      setFormError("Please set a Due Date for this adhoc task.");
+    if ((taskType === 'adhoc_date' || taskType === 'adhoc_kpi') && !dueDate) {
+      setFormError("Please set a Due Date for this one-off task.");
+      return;
+    }
+    if (isRecurring && !endDate) {
+      setFormError("Please set an End Date — recurring tasks must have a finish date.");
+      return;
+    }
+    if (isRecurring && endDate <= today) {
+      setFormError("End Date must be after today.");
       return;
     }
 
@@ -112,10 +123,12 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
         proposedBy: 'parent',
         rewardLocked: false,
         dueDate: (taskType === 'adhoc_date' || taskType === 'adhoc_kpi') && dueDate ? Timestamp.fromDate(new Date(dueDate)) : null,
-        recurrence: (taskType === 'daily' || taskType === 'weekly' || taskType === 'monthly') ? {
+        recurrence: isRecurring ? {
           weekday: taskType === 'weekly' ? (weekday || 'monday') : null,
           dayOfMonth: taskType === 'monthly' ? (dayOfMonth || 1) : null,
-          lastReset: serverTimestamp()
+          endDate: endDate ? Timestamp.fromDate(new Date(endDate + 'T23:59:59')) : null,
+          lastReset: serverTimestamp(),
+          expired: false,
         } : null,
         completedAt: null,
         approvedAt: null,
@@ -141,25 +154,25 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center sm:p-4"
     >
-      <motion.div 
+      <motion.div
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-t-[2rem] sm:rounded-[2.5rem] shadow-2xl w-full sm:max-w-2xl max-h-[92dvh] sm:max-h-[90vh] overflow-hidden flex flex-col"
       >
         {/* Header */}
-        <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
+        <div className="px-4 py-4 sm:px-8 sm:py-6 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
           <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Create a Task</h2>
-            <p className="text-slate-500 text-sm font-medium">Build accountability and trust</p>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Create a Task</h2>
+            <p className="text-slate-500 text-xs sm:text-sm font-medium">Build accountability and trust</p>
           </div>
           <button onClick={onClose} className="p-2 bg-slate-100 text-slate-400 hover:text-slate-600 rounded-2xl transition-all">
             <X size={24} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
+        <form onSubmit={handleSubmit} noValidate className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6 sm:space-y-8 scrollbar-hide">
           {/* Type Selector */}
           <section>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">Select Task Type</label>
@@ -217,17 +230,24 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Assign To</label>
-                <select
-                  required
-                  value={assignedTo}
-                  onChange={(e) => setAssignedTo(e.target.value)}
-                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                >
-                  <option value="">Select Child</option>
-                  {children.map(child => (
-                    <option key={child.uid} value={child.uid}>{child.displayName}</option>
-                  ))}
-                </select>
+                {children.length === 0 ? (
+                  <div className="w-full px-5 py-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800">
+                    <p className="text-sm font-black">No children in your household yet.</p>
+                    <p className="text-xs font-medium mt-1 opacity-70">Go to the <strong>Family</strong> tab → share your invite code with your child so they can join.</p>
+                  </div>
+                ) : (
+                  <select
+                    required
+                    value={assignedTo}
+                    onChange={(e) => setAssignedTo(e.target.value)}
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                  >
+                    <option value="">Select Child</option>
+                    {children.map(child => (
+                      <option key={child.uid} value={child.uid}>{child.displayName}</option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Reward (Points)</label>
@@ -245,7 +265,7 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
           </div>
 
           {/* Quality Standard (KPI) */}
-          <section className="bg-indigo-50 p-6 rounded-[2rem] border border-indigo-100">
+          <section className="bg-indigo-50 p-4 sm:p-6 rounded-[2rem] border border-indigo-100">
             <div className="flex items-center gap-2 mb-4">
               <ClipboardCheck className="text-indigo-600" size={20} />
               <h3 className="font-black text-indigo-900 uppercase tracking-tight text-sm">Quality Standard (KPI)</h3>
@@ -261,43 +281,93 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
           </section>
 
           {/* Conditional Fields */}
-          <AnimatePresence mode="wait">
-            {taskType === 'weekly' && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Which Day?</label>
-                <div className="flex flex-wrap gap-2">
-                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => setWeekday(day)}
-                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition-all border ${
-                        weekday === day ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-100 text-slate-500 border-slate-100'
-                      }`}
-                    >
-                      {day.substring(0, 3)}
-                    </button>
-                  ))}
+          <AnimatePresence mode="sync">
+
+            {/* ── Recurring: schedule + end date ─────────────────────────── */}
+            {isRecurring && (
+              <motion.div
+                key="recurring-config"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-5 bg-slate-50 border border-slate-200 rounded-[2rem] p-4 sm:p-6"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-indigo-100 rounded-xl flex-shrink-0">
+                    <CalendarDays size={16} className="text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="font-black text-slate-800 text-sm">Recurring schedule</p>
+                    <p className="text-slate-400 text-xs font-medium mt-0.5">
+                      {taskType === 'daily' && 'This task will repeat every day. If not completed, it forfeits and resets the next day.'}
+                      {taskType === 'weekly' && 'This task recurs once per week on the chosen day. Missed = forfeited for that week.'}
+                      {taskType === 'monthly' && 'This task recurs once per month on the chosen day. Missed = forfeited for that month.'}
+                    </p>
+                  </div>
+                </div>
+
+                {taskType === 'weekly' && (
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Which Day of the Week?</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => setWeekday(day)}
+                          className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition-all border ${
+                            weekday === day ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300'
+                          }`}
+                        >
+                          {day.substring(0, 3)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {taskType === 'monthly' && (
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Which Day of the Month?</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="28"
+                      value={dayOfMonth}
+                      onChange={(e) => setDayOfMonth(Math.min(28, Math.max(1, parseInt(e.target.value) || 1)))}
+                      className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                    />
+                    <p className="text-[10px] text-slate-400 font-bold mt-1 ml-1">Max 28 to ensure all months are covered</p>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                    <Calendar size={12} /> Recurring Until (End Date) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    min={tomorrow}
+                    value={endDate}
+                    required
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-5 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
+                  />
+                  <p className="text-[10px] text-slate-400 font-bold mt-1 ml-1">
+                    After this date the task expires. The last incomplete cycle will be forfeited automatically.
+                  </p>
                 </div>
               </motion.div>
             )}
 
-            {taskType === 'monthly' && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Day of Month</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  value={dayOfMonth}
-                  onChange={(e) => setDayOfMonth(parseInt(e.target.value))}
-                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold"
-                />
-              </motion.div>
-            )}
-
+            {/* ── One-off: due date ───────────────────────────────────────── */}
             {(taskType === 'adhoc_date' || taskType === 'adhoc_kpi') && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+              <motion.div
+                key="adhoc-due"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2">
                   <Calendar size={14} /> Due Date
                 </label>
@@ -312,8 +382,15 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
               </motion.div>
             )}
 
+            {/* ── KPI extras ─────────────────────────────────────────────── */}
             {taskType === 'adhoc_kpi' && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-4 pt-4 border-t border-slate-100">
+              <motion.div
+                key="kpi-extras"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-4 pt-4 border-t border-slate-100"
+              >
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Target Metric</label>
@@ -398,11 +475,11 @@ export default function CreateTaskForm({ householdId, members, onClose }: Props)
           )}
 
           {/* Submit */}
-          <div className="pt-4 sticky bottom-0 bg-white">
+          <div className="pt-4 sticky bottom-0 bg-white pb-4 sm:pb-0">
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-[2rem] shadow-xl shadow-indigo-100 transition-all flex items-center justify-center gap-3 group"
+              className="w-full py-4 sm:py-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-[2rem] shadow-xl shadow-indigo-100 transition-all flex items-center justify-center gap-3 group"
             >
               {loading ? (
                 <Loader2 className="animate-spin" size={24} />

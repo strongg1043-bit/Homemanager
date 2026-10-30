@@ -3,9 +3,9 @@ import { db } from '../firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Redemption, UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  X, Banknote, Landmark, CreditCard, 
-  Wallet, Camera, Check, Loader2, Info,
+import {
+  X, Banknote, Landmark, CreditCard,
+  Wallet, Camera, Check, Loader2,
   Receipt, FileText
 } from 'lucide-react';
 import { compressToBase64Profile } from '../lib/imageUtils';
@@ -19,6 +19,7 @@ interface Props {
   profile: UserProfile;
   householdCurrency: string;
   members: UserProfile[];
+  emailEnabled?: boolean;
 }
 
 const METHODS = [
@@ -28,7 +29,7 @@ const METHODS = [
   { id: 'other', label: 'Other', icon: <Banknote size={16} /> },
 ] as const;
 
-export default function PaymentConfirmationModal({ isOpen, onClose, redemption, profile, householdCurrency, members }: Props) {
+export default function PaymentConfirmationModal({ isOpen, onClose, redemption, profile, householdCurrency, members, emailEnabled = true }: Props) {
   const [method, setMethod] = useState<'cash' | 'bank_transfer' | 'eft' | 'other'>('cash');
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
@@ -78,9 +79,8 @@ export default function PaymentConfirmationModal({ isOpen, onClose, redemption, 
         '💰', { redemptionId: redemption.id }
       );
 
-      // Send Email
       const child = members.find(m => m.uid === redemption.childId);
-      if (child?.email) {
+      if (emailEnabled && child?.email) {
         sendPaymentConfirmedEmail(
           child.email, child.displayName || redemption.childName, profile.displayName || 'Your parent',
           redemption.cashValue || redemption.pointsSpent, householdCurrency,
@@ -100,8 +100,8 @@ export default function PaymentConfirmationModal({ isOpen, onClose, redemption, 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-[110] p-4">
-          <motion.div 
+        <div className="fixed inset-0 flex items-end sm:items-center justify-center z-[110] sm:p-4">
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -112,9 +112,9 @@ export default function PaymentConfirmationModal({ isOpen, onClose, redemption, 
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
+            className="relative w-full sm:max-w-lg bg-white rounded-t-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[92dvh] sm:max-h-[90vh] flex flex-col"
           >
-            <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-indigo-600">
+            <div className="p-6 sm:p-8 border-b border-slate-50 flex items-center justify-between bg-indigo-600 flex-shrink-0">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-white backdrop-blur-sm">
                   <Banknote size={24} />
@@ -132,7 +132,7 @@ export default function PaymentConfirmationModal({ isOpen, onClose, redemption, 
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-5 sm:space-y-6 overflow-y-auto flex-1 pb-4 sm:pb-8">
               {/* Summary */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
                 <div>

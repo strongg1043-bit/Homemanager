@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "org.homeanchor.app",
+      "sha256_cert_fingerprints": [
+        "FF:37:6C:B8:16:7D:F0:EF:76:EA:DC:4D:8A:DD:FB:7E:61:01:43:20:7B:D3:95:7E:36:2F:C4:96:CD:82:0E:37"
+      ]
+    }
+  }
+]
