@@ -49,7 +49,9 @@
       "public": "dist",
       "ignore": [
         "firebase.json",
-        "**/.*",
+        "**/.git/**",
+        "**/.DS_Store",
+        "**/.env*",
         "**/node_modules/**"
       ],
       "rewrites": [
